@@ -449,3 +449,135 @@ src/
 - **알림 승격**: 서버 + Web Push(VAPID)로 백그라운드 알림 가능해짐 — `lib/alarms.ts`의 발화 경로가 이미 SW `showNotification`이라 푸시 핸들러와 코드 공유.
 - **인증**: 필요 시점에 결정. 데이터 모델에 userId를 지금 넣지 않는다(로컬 데이터는 암묵적 단일 사용자 — 서버 마이그레이션 시 계정 귀속).
 - **데이터 이전**: JSON 내보내기/가져오기(v1.1 백로그)가 "로컬 → 서버 최초 업로드"의 수동 경로도 겸함.
+
+---
+
+## 14. Que Task 연동 (외부 작업 소스 동기화)
+
+> 상태: **설계 확정(사용자 승인 2026-07-08).** §13이 예고한 "서버 도입 시나리오"의 첫 구현체다.
+> §13은 "v1에 서버 코드를 선반영하지 않는다(YAGNI)"였으나, Que(사내 팀 작업관리 도구, base=`https://que.griff.co.kr`)가
+> 프로덕션 REST API를 배포하면서 이 절이 그 경계를 실제 어댑터로 채운다. **§13의 규칙(변이 초크포인트·저장소 어댑터·LWW·아웃박스)을 그대로 승격**하며, §9의 "fetch/API 레이어 store 선반영 금지"는 여기서 해제된다 — 단, fetch는 신설 `lib/queApi.ts` 한 곳에만 두고 `blocksStore`는 이를 import하지 않는다.
+
+### 14.0 확정 결정 4개
+
+1. **하이브리드 표현.** 시간(`startAt`/`endAt`)이 있는 Que 태스크는 **타임라인 연동 블록**으로 렌더한다. 시간이 없는 태스크는 타임라인에 놓을 수 없으므로 상단 **"Que 할 일" 인박스**에 모으고, 사용자가 인박스 항목을 타임라인으로 드래그해 배치하면 그 순간 시각이 정해져 **연동 블록이 생성**된다(그리고 Que로 일정이 write-back 된다).
+2. **write-back = 완료 + 재일정 2종.** 연동 블록의 완료 토글 → Que 태스크 상태 `done`. 연동 블록의 시간 변경(이동·리사이즈·인박스→타임라인 배치) → Que 태스크 일정 변경(`move`). 그 외(제목·메모·색·이모지·알림)는 **로컬 전용**이며 Que로 보내지 않는다(Que 모델에 대응 필드가 없음).
+3. **인증 신설.** DayBlocks는 원래 백엔드 없는 단일 사용자 로컬 앱이다. 여기에 **"Que 계정 연결"** 개념을 더한다 — 로그인 화면에서 email/password로 Que PAT(토큰)를 받아 **safeStorage 어댑터**(§13.1 규칙2)를 통해 영속한다. 토큰이 없으면 앱은 순수 로컬 플래너로 동작하고, 연결하면 Que 태스크가 얹힌다.
+4. **모델 확장.** `TimeBlock`에 `queTaskId?`·`syncState?`를 더한다(§14.3). `sanitizeBlocks`가 미지 필드를 **보존**하도록 설계돼 있어(§13.2) 하위호환이 안전하다. 연동 블록(`queTaskId` 있음)은 로컬 전용 블록(`queTaskId` 없음)과 필드 유무만으로 구분한다.
+
+### 14.1 데이터 흐름
+
+```
+[로그인]  POST /api/auth/mobile {email,password}
+          → { token, user:{id,name,role} }   (토큰 → authStore → safeStorage 'dayblocks:auth')
+             ↓ 이후 모든 호출: Authorization: Bearer <token> + X-Que-Via: mobile
+
+[풀(pull)] GET /api/tasks?assignee=<user.id>            ← 전체 동기화 소스(인박스 + 모든 날짜)
+          → { tasks: (Task & {projectLabel?,clientId?,clientName?})[] }
+             ├─ startAt·endAt 있음 → 연동 블록 (해당 날짜의 dateKey + 분)   → 타임라인
+             └─ 시간 없음(둘 다 없음) → "Que 할 일" 인박스                    → 상단 인박스
+          (참고) GET /api/my-day 는 "오늘 요약" 전용이며 **무시간 태스크를 뺀다** → 인박스 소스로 못 씀(§14.2 주의)
+
+[라이트백] 연동 블록 완료 토글  → POST /api/tasks/<queTaskId>/status {to:"done"}      → { task }
+          연동 블록 시간 변경  → POST /api/tasks/<queTaskId>/move   {startAt,endAt}  → { task }
+          인박스→타임라인 배치 → addBlock(queTaskId, syncState:'pending') + 즉시 move (태스크에 최초 일정 부여)
+
+[실패/오프라인] 로컬 우선 커밋(UI 즉시 반영) → 아웃박스 적재 → 재연결·앱시작 시 플러시.
+               성공 syncState='synced' / 재시도성 실패(5xx·네트워크) 'pending' / 비재시도(403·404) 'error'.
+```
+
+**핵심 원칙(로컬 우선):** localStorage가 진실의 소스이고 Que는 미러다. 모든 UI 조작은 store 액션으로 즉시 로컬에 커밋되고, Que 반영은 뒤따른다. 네트워크가 없어도 앱은 완전히 동작한다(§8 오프라인 계약 유지).
+
+### 14.2 Que API 계약(실측) — `apps/web/src/app/api/` 확인 결과
+
+모든 인증 호출 공통 헤더: `Authorization: Bearer <token>`, `X-Que-Via: mobile`(Que `auth.ts`가 `mobile`을 화이트리스트에 포함 → ChangeLog `via=mobile` 기록), 본문 있으면 `Content-Type: application/json`. **CORS 기확보**: Que가 `https://todo.griff.co.kr`·`http://localhost:5173`·`:3000`을 화이트리스트에 등록, 허용 헤더 `Authorization, Content-Type, X-Que-Via`, 메서드 `GET/POST/PATCH/DELETE/OPTIONS`(프리플라이트 커버), credentials 없음(Bearer 방식). 커스텀 헤더(`X-Que-Via`)로 프리플라이트가 발생하지만 서버가 처리한다.
+
+| 용도 | 메서드·경로 | 요청 | 성공 응답 |
+|---|---|---|---|
+| 로그인 | `POST /api/auth/mobile` | `{email,password}` | `200 {token, user:{id,name,role}}` |
+| 내 작업 전체 | `GET /api/tasks?assignee=<userId>` | — | `{tasks: (Task & {projectLabel?,clientId?,clientName?})[]}` |
+| 오늘 요약(참고) | `GET /api/my-day` | — | `TodayData`(아래 주의) |
+| 상태 변경 | `POST /api/tasks/<taskId>/status` | `{to: TaskStatus, detail?, mergedIntoTaskId?}` | `{task: Task}` |
+| 일정 이동 | `POST /api/tasks/<taskId>/move` | `{startAt, endAt}`(ISO8601+offset) | `{task: Task}` |
+
+- **로그인 실패:** `401 {error:{message}}`(계정 존재 여부 비노출 일반 메시지) / `403 {error:{message:"웹에서 비밀번호를 먼저 변경하세요."}}`(임시비번) / `400`(형식 오류, 동일 일반 메시지). 로그인은 유일한 공개(PAT 불필요) 표면.
+- **API 에러 형태(로그인 외):** `{error:{code, message}}`. 상태 매핑(Que `respond.ts`): `401 UNAUTHORIZED`(토큰 무효/만료) · `403 NOT_AUTHORIZED|EVENT_NOT_MOVABLE` · `404 NOT_FOUND` · `409`(중복/이미처리) · `422 INVALID_INPUT|INVALID_SCHEDULE|STATUS_DETAIL_REQUIRED` · `413 PAYLOAD_TOO_LARGE`(>100KB).
+- **⚠ 주의 — my-day는 인박스에 못 씀:** `GET /api/my-day`는 `getTodayData`를 반환하는데, 그 `myTasks`는 `overlapsToday(startAt,endAt)`로 거르며 이 함수는 **`startAt`·`endAt`가 둘 다 없으면 `false`**를 낸다. 즉 **무시간 태스크가 빠지고**, 게다가 "오늘"만 담는다. 따라서 인박스(무시간)와 다른 날짜 타임라인을 함께 채우려면 **`GET /api/tasks?assignee=<userId>`가 정본 풀 소스**다. `my-day`는 필요 시 "오늘" 빠른 요약 용도로만 보조 사용한다.
+- **Task 필드(Que `domain.ts` `taskSchema`):** `id, title, ownerId, assigneeId, projectId?, startAt?, endAt?, status, priority, description?, estimatedHours?, source, visibility, mergedIntoTaskId?, recurringTemplateId?, lastChangedBy?, lastChangedAt?`.
+  - `startAt/endAt`: **ISO8601 datetime(offset 포함)** — 절대 순간(타임존 인지). DayBlocks의 벽시계(dateKey+분)와 표현이 다르다 → §14.4에서 경계 변환.
+  - `status`(8종): `scheduled|in_progress|done|needs_reschedule|on_hold|issue|cancelled|merged`. `cancelled`·`merged`는 능동 화면에서 숨김(연동 대상 아님).
+  - **`projectName`은 Task에 없다.** 프로젝트 표시는 `projectId`(원시) + `/api/tasks`가 곁들이는 파생 `projectLabel`(거래처·프로젝트 합성 라벨)·`clientName`을 쓴다. 인박스 항목의 부제로 `projectLabel`을 노출한다.
+
+### 14.3 `TimeBlock` 모델 확장 (§2 갱신)
+
+```ts
+export type QueSyncState = 'synced' | 'pending' | 'error';
+
+export interface TimeBlock {
+  // …기존 필드 그대로…
+  queTaskId?: string;       // 링크한 Que Task.id. 없으면 로컬 전용 블록. ⚠ TimeBlock.id에 Que id를 넣지 않는다.
+  syncState?: QueSyncState; // 연동 블록의 라이트백 상태. 로컬 전용 블록은 undefined.
+}
+```
+
+- **왜 `id`가 아니라 별도 `queTaskId`인가:** `TimeBlock.id`는 로컬 영속 키이자 lane/dnd 키이고 `sanitizeBlocks`의 맵 키다(§3.1). Que id로 덮으면 로컬/연동 블록 경계가 무너지고 재하이드레이션 키가 흔들린다. 링크는 **비파괴 참조**여야 한다 — `id`는 로컬 `crypto.randomUUID()` 유지, `queTaskId`가 원격을 가리킨다.
+- **하위호환 근거(§13.2 sanitize 보존):** `sanitizeBlock`은 `{...b}`로 **미지 필드를 먼저 펼친 뒤** 알려진 필드만 덮어쓴다 → `queTaskId`·`syncState`는 명시 가드가 없어도 재로드 후 살아남는다. Stage에서 이 둘에 한해 얇은 타입 가드(`queTaskId`는 string, `syncState`는 열거값)만 추가해 위생을 지킨다(값이 이상하면 링크만 끊고 로컬 블록으로 강등 — 블록 자체는 드롭하지 않음).
+- **`NewBlockInput` 확장:** optional `queTaskId?`·`syncState?`를 추가하고 `addBlock`이 블록 리터럴에 복사한다. **새 액션이 아니라 기존 액션의 가법적 확장** — 8개 변이 초크포인트(§3.1)를 유지한다. `BlockPatch`는 `Omit<TimeBlock,'id'|'createdAt'|'updatedAt'>` 기반이라 두 신규 필드 패치를 자동 허용한다(`updateBlock`으로 `syncState` 전이). `moveBlock`·`toggleComplete`은 `{...prev}` 스프레드라 두 필드를 자동 보존한다.
+
+### 14.4 Que 필드 → TimeBlock 매핑 표
+
+| Que Task 필드 | TimeBlock 필드 | 변환 규칙 |
+|---|---|---|
+| `id` | `queTaskId` | 그대로 링크. `TimeBlock.id`는 로컬 UUID 유지(위 근거). |
+| `title` | `title` | 직결. 빈 값이면 store `normalizeTitle`이 '새 일정'으로 대체(§2). |
+| `startAt`(ISO+offset) | `dateKey` + `startMin` | `new Date(startAt)`를 **기기 로컬**로 해석 → `toDateKey()` + `getHours()*60+getMinutes()`(벽시계, §14.5). |
+| `endAt`(ISO+offset) | `endMin` | 동일 변환. 없으면 `startMin + DEFAULT_DURATION`(60분) 클램프. `startAt`도 없으면 → 인박스(블록 아님). |
+| `status`=`done` | `completed` | `done → true`, 그 외 → `false`. (역방향은 §14.6) |
+| `status`(전체) | `color`(선택·표시) | 옵션 시각 매핑: `issue→red · on_hold→amber · done→green · 그 외→blue`. 로컬 색 편집이 우선이면 덮지 않음. |
+| `description` | `note` | 최초 프리필만(옵션). 이후 로컬 편집은 Que로 안 감. |
+| `projectLabel`(파생) / `projectId` | (표시용) | 인박스/블록 부제로 노출. **TimeBlock에 저장하지 않음**(모델 최소 유지). `projectName`은 Que Task에 없음 — `projectLabel` 사용. |
+| `assigneeId` | (필터 조건) | `=== user.id`인 태스크만 취함. 저장하지 않음. |
+| — | `syncState` | 풀 직후 `'synced'`. 로컬 변이 후 플러시 전 `'pending'`. |
+| — | `emoji` / `color` / `alarm` | Que에 대응 없음 → 기본값(`📌`/`blue`(또는 status 파생)/`null`). |
+
+**역매핑(write-back):**
+- **완료:** `completed:true → POST /status {to:"done"}`. **완료 해제**는 직전 상태를 보존하지 않으므로 안전 기본값 `{to:"in_progress"}`로 되돌린다(오늘 타임라인에 있으므로 "진행 재개" 의미 — 문서화된 결정). `issue`/`on_hold`로의 전환은 `detail.reason` 필수(core 강제)라 DayBlocks에서는 만들지 않는다.
+- **재일정:** `(dateKey, startMin, endMin) 변경 → POST /move {startAt, endAt}`. `startAt = ` 로컬 (dateKey, startMin) 조합을 offset 포함 ISO로 직렬화(§14.5). core `parseScheduleRange`가 `startAt ≤ endAt`을 검증한다.
+
+### 14.5 시간 표현 경계 변환 (핵심 난제)
+
+Que는 **절대 순간(ISO8601+offset, 타임존 인지)**, DayBlocks는 **벽시계(dateKey + 자정 기준 분, 타임존 비의존, §2)**. 두 표현은 `lib/queApi.ts` 경계에서만 오간다:
+
+- **풀(Que→로컬):** `new Date(startAt)` → 기기 로컬 타임존으로 해석 → `toDateKey()`(날짜) + `getHours()*60+getMinutes()`(분). `differenceInMinutes`/`startOfDay` 금지 규칙(§4.1) 준수 — 네이티브 게터만 쓴다.
+- **푸시(로컬→Que):** `(dateKey, startMin)` → `fromDateKey(dateKey)`에 `setHours(0,0,0,0)` 후 분 가산 → `toISOString()`(또는 로컬 offset 포함 직렬화). 한국은 DST가 없고 §2가 "09:00은 어디서나 09:00" 벽시계 시맨틱을 이미 채택했으므로 왕복이 안전하다. 기기 타임존이 태스크 생성 시점과 다르면 벽시계값이 어긋날 수 있으나 이는 §2가 수용한 트레이드오프다(문서화).
+- **자정 넘김:** DayBlocks는 자정 넘김 금지(§2). Que 태스크가 여러 날에 걸치면 **시작일에만** 렌더하고 `endMin`을 `1440`으로 클램프한다(꼬리 잘림을 부제/툴팁으로 안내). 이런 태스크의 이동 write-back은 사용자가 명시적으로 시간을 바꿀 때만 발생하므로 원본 다일(多日) 범위를 임의로 훼손하지 않는다.
+
+### 14.6 스토어 초크포인트 준수 + 라이트백 트리거
+
+**§13.1 규칙2(모든 데이터 변이는 `blocksStore` 8액션으로만, localStorage 직접 접근 금지)를 깨지 않는다.**
+
+- 블록 데이터는 여전히 store 액션만이 변이한다. `queSync`는 블록 상태를 **읽기만** 하고, `syncState` 전이는 `updateBlock`으로만 쓴다.
+- 네트워크 부수효과(fetch)는 `lib/queApi.ts`에만 존재하며 `blocksStore`는 이를 import하지 않는다(store는 순수 + persist만 — §9 원칙 유지).
+- **라이트백 트리거:** 연동 블록(`queTaskId` 있음)에 `toggleComplete`/`moveBlock`/`resizeBlock`이 커밋되면, `queSync`가 그 커밋을 zustand `subscribe`로 감지해 **아웃박스**에 `status`/`move` 작업을 적재한다. 적재 즉시 `updateBlock`으로 `syncState='pending'` → 플러시 성공 시 `'synced'`, 실패 시 `'error'`/재시도. 로컬 전용 블록(`queTaskId` 없음)의 변이는 아웃박스를 건드리지 않는다.
+- **인박스→타임라인 배치:** 인박스 드롭 핸들러가 `addBlock({queTaskId, syncState:'pending', dateKey, startMin, endMin})` 1회 호출(생성 초크포인트 유지) → `queSync`가 최초 일정 부여로 `move` write-back을 큐잉.
+
+### 14.7 오프라인·실패 처리 (§13.2 아웃박스 구체화)
+
+- **로컬 우선 + 아웃박스 큐:** 변이는 로컬에 즉시 커밋되고, Que 반영 작업은 아웃박스(연동 블록별 최신 의도로 코얼레스 — 같은 블록의 연속 이동은 마지막 것만)에 쌓인다. `online` 이벤트·앱 시작·주기 틱에 플러시.
+- **LWW 조정:** 풀 시 Que `task.lastChangedAt`과 로컬 `updatedAt`을 비교 — 원격이 최신이면 `updateBlock`으로 로컬을 갱신(단, 로컬에 미플러시 `pending`이 있으면 로컬 우선 후 재푸시), 로컬이 최신이면 푸시 우선(§13.1 규칙3).
+- **에러 등급:** `401`(토큰 만료/무효) → authStore를 `anon`으로 전이 + 로그인 유도, 아웃박스 보존(재로그인 후 플러시). `403 NOT_AUTHORIZED`·`404 NOT_FOUND`(원격에서 삭제/권한상실) → `syncState='error'` + 토스트(재시도 안 함, 사용자 개입). `5xx`·네트워크 실패 → `syncState='pending'` 지수 백오프 재시도.
+- 토큰·손상 대응은 §3.1 `safeStorage` 계약을 그대로 따른다(파싱 실패 백업, 쿼터 초과 토스트).
+
+### 14.8 신설 파일 (§9 폴더 구조에 추가)
+
+| 파일 | 역할 |
+|---|---|
+| `src/lib/queApi.ts` | **fetch 단일 통과점.** `QUE_BASE`(`https://que.griff.co.kr`) 상수, `login/getMyTasks/setTaskStatus/moveTask` 래퍼, 공통 헤더(Bearer+`X-Que-Via: mobile`), 그리고 §14.4·§14.5 순수 매핑 함수(`queTaskToBlockInput`, `blockToScheduleRange`). 토큰은 `authStore.getState().token`에서 읽는다. (§13.2가 예고한 `lib/api.ts`의 구체화) |
+| `src/store/authStore.ts` | **persist(safeStorage, key `dayblocks:auth`)** — `{token, user, status:'anon'|'authed'}` + `login(email,password)`/`logout`. 저장은 §13.1 규칙2대로 **safeStorage 어댑터 경유**(원시 localStorage 금지). |
+| `src/store/queSync.ts` | 동기화 레이어 — 풀 reconcile(연동 블록 add/update) + 아웃박스 + 라이트백 플러시 + `syncState` 전이. store 액션만으로 블록 변이, 네트워크는 `queApi`만. |
+| `src/components/QueInbox.tsx` | 상단 "Que 할 일" 무시간 인박스. 드래그→타임라인 배치 시 연동 블록 생성(§14.6). |
+| `src/components/LoginScreen.tsx` | email/password → `authStore.login`. `status==='anon'`이면 셸 대신 로그인 노출(미연결 시 순수 로컬 플래너로 계속 사용 가능하도록 "나중에" 경로 포함). |
+
+- **`src/lib/strings.ts`**(규칙5): Que 연동 카피(로그인 라벨·에러·인박스 제목·동기화 상태·토스트)를 `STRINGS.que` 하위에 추가한다. 컴포넌트 하드코딩 금지.
+- **`src/types.ts`**(§14.3): `QueSyncState` 타입 + `TimeBlock`에 `queTaskId?`·`syncState?` 추가.
+- **의존성:** 새 드래그/HTTP 라이브러리 도입 없음. fetch는 네이티브, 인박스 드래그는 기존 dnd-kit/커스텀 포인터 규율(§4)을 재사용한다.

@@ -92,4 +92,48 @@ export const STRINGS = {
     corruptBackup: '저장 데이터를 읽지 못해 백업 후 초기화했어요',
     quotaExceeded: '저장 공간이 부족해 변경사항을 저장하지 못했어요',
   },
+
+  // Que 연동 카피 — DESIGN.md §14.8 (컴포넌트 하드코딩 금지, 규칙5)
+  que: {
+    login: {
+      title: 'Que 계정 연결',
+      subtitle: '회사 Que 작업을 타임라인에 얹으려면 로그인하세요',
+      emailLabel: '이메일',
+      emailPlaceholder: 'name@griff.co.kr',
+      passwordLabel: '비밀번호',
+      passwordPlaceholder: '비밀번호',
+      submit: '연결',
+      submitting: '연결 중…',
+      later: '나중에',
+      genericError: '이메일 또는 비밀번호를 확인해 주세요',
+    },
+    inbox: {
+      title: 'Que 할 일',
+      count: (n: number) => `Que 할 일 ${n}`,
+      empty: '배치할 Que 할 일이 없어요',
+      place: '오늘에 배치',
+      connect: 'Que 계정 연결',
+      refresh: '새로고침',
+      logout: '연결 해제',
+      noProject: '프로젝트 없음',
+    },
+    sync: {
+      syncing: '동기화 중…',
+      synced: '동기화됨',
+      pending: (n: number) => `대기 ${n}`,
+      error: '동기화 실패',
+    },
+    error: {
+      offline: '네트워크에 연결할 수 없어요',
+      generic: '요청을 처리하지 못했어요',
+      notConnected: 'Que 계정이 연결되어 있지 않아요',
+    },
+    toast: {
+      connected: (name: string) => `${name}님, Que에 연결됐어요`,
+      disconnected: 'Que 연결을 해제했어요',
+      sessionExpired: 'Que 세션이 만료됐어요. 다시 연결해 주세요',
+      syncFailed: 'Que 동기화에 실패한 항목이 있어요',
+      placed: 'Que 할 일을 타임라인에 배치했어요',
+    },
+  },
 } as const;

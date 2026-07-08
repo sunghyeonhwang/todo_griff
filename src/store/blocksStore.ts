@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { AlarmOffset, BlockColor, TimeBlock } from '../types';
+import type { AlarmOffset, BlockColor, QueSyncState, TimeBlock } from '../types';
 import { DAY_MINUTES, MIN_DURATION, STORE_SNAP, clamp, snapMin } from '../lib/time';
 import { DEFAULT_EMOJI } from '../lib/emojis';
 import { createSafeStorage } from '../lib/safeStorage';
@@ -15,6 +15,7 @@ import { BLOCK_COLOR_KEYS } from '../lib/tokens';
 
 export const DEFAULT_COLOR: BlockColor = 'blue'; // §2 TimeBlock.color 기본
 export const ALARM_OFFSETS: readonly AlarmOffset[] = [0, 5, 10, 15, 30, 60]; // §2와 1:1
+const QUE_SYNC_STATES: readonly QueSyncState[] = ['synced', 'pending', 'error']; // §14.3과 1:1
 
 /** addBlock 입력 — 생략 필드는 스토어가 기본값을 채운다(§3.1) */
 export interface NewBlockInput {
@@ -26,6 +27,9 @@ export interface NewBlockInput {
   color?: BlockColor;
   alarm?: AlarmOffset | null;
   note?: string;
+  // Que 연동(§14.3) — 기존 액션의 가법적 확장. 8개 변이 초크포인트 유지(§3.1).
+  queTaskId?: string;
+  syncState?: QueSyncState;
 }
 
 /** updateBlock 패치 — id/createdAt 불변, updatedAt은 스토어가 스탬프(§13.3 LWW) */
@@ -76,6 +80,10 @@ function isAlarmOffset(v: unknown): v is AlarmOffset {
   return typeof v === 'number' && (ALARM_OFFSETS as readonly number[]).includes(v);
 }
 
+function isQueSyncState(v: unknown): v is QueSyncState {
+  return typeof v === 'string' && (QUE_SYNC_STATES as readonly string[]).includes(v);
+}
+
 /** 구조 가드 실패 항목은 드롭, 필드 단위 이상은 기본값 보정. 미지 필드는 보존(§13.2 tombstone 대비). */
 function sanitizeBlock(fallbackId: string, v: unknown): TimeBlock | null {
   if (typeof v !== 'object' || v === null) return null;
@@ -97,6 +105,10 @@ function sanitizeBlock(fallbackId: string, v: unknown): TimeBlock | null {
     completed: b.completed === true,
     createdAt: typeof b.createdAt === 'number' && Number.isFinite(b.createdAt) ? b.createdAt : now,
     updatedAt: typeof b.updatedAt === 'number' && Number.isFinite(b.updatedAt) ? b.updatedAt : now,
+    // Que 링크 위생(§14.3) — ...b가 펼친 값을 검증값으로 덮는다. 이상하면 링크만 끊고
+    // (undefined → JSON에서 탈락) 로컬 블록으로 강등, 블록 자체는 드롭하지 않는다.
+    queTaskId: typeof b.queTaskId === 'string' && b.queTaskId !== '' ? b.queTaskId : undefined,
+    syncState: isQueSyncState(b.syncState) ? b.syncState : undefined,
   };
 }
 
@@ -143,6 +155,9 @@ export const useBlocksStore = create<BlocksState & BlocksActions>()(
           completed: false,
           createdAt: now,
           updatedAt: now,
+          // Que 연동(§14.3) — 생략 시 undefined(로컬 전용 블록). exactOptional 미사용이라 안전.
+          queTaskId: input.queTaskId,
+          syncState: input.syncState,
         };
         set((s) => ({ blocks: { ...s.blocks, [block.id]: block } }));
         return block;

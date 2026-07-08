@@ -2,8 +2,11 @@ import { useRef } from 'react';
 import AddFab from './components/AddFab';
 import BlockEditor from './components/BlockEditor';
 import DateHeader from './components/DateHeader';
+import LoginScreen from './components/LoginScreen';
+import QueInbox from './components/QueInbox';
 import Timeline, { type TimelineHandle } from './components/Timeline';
 import Toast from './components/Toast';
+import { useAuthStore } from './store/authStore';
 
 // 앱 셸 — DESIGN.md §6.5
 // - 루트 h-dvh (100vh/h-screen 금지 — iOS 툴바 문제), max-w-app 중앙 컬럼.
@@ -14,11 +17,24 @@ import Toast from './components/Toast';
 // - BlockEditor(에디터 시트)·Toast(z-toast 60, 시트 위)는 앱 전체에 인스턴스 1개씩(§5, §9).
 export default function App() {
   const timelineRef = useRef<TimelineHandle>(null);
+  // Que 미연결(anon) + "나중에" 미선택이면 셸 대신 로그인 노출(§14.8). Toast는 병행 마운트
+  // (부팅 시 safeStorage 손상 안내 등이 유실되지 않게).
+  const showLogin = useAuthStore((s) => s.status === 'anon' && !s.dismissed);
+
+  if (showLogin) {
+    return (
+      <>
+        <LoginScreen />
+        <Toast />
+      </>
+    );
+  }
 
   return (
     <div className="h-dvh bg-surface-background">
       <div className="relative mx-auto flex h-full w-full max-w-app flex-col bg-surface-card sm:border-x sm:border-surface-timeline-line sm:shadow-lg">
         <DateHeader onToday={() => timelineRef.current?.scrollToNow('smooth')} />
+        <QueInbox />
         <Timeline ref={timelineRef} />
         <AddFab />
       </div>
