@@ -3,6 +3,8 @@
 
 export const STRINGS = {
   appName: 'DayBlocks',
+  /** PWA manifest description(§8) — vite.config.ts가 import(카피 단일 소스 유지) */
+  appDescription: '하루를 세로 타임라인으로 계획하는 데일리 플래너',
 
   header: {
     prevDay: '이전 날짜',

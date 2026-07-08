@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- DayBlocks 아이콘 — 액센트 #4285F4(--accent-primary), 라운드 스퀘어 + 타임블록 글리프 (DESIGN.md §8) -->
+  <rect width="512" height="512" rx="115" fill="#4285F4"/>
+  <g fill="#FFFFFF">
+    <rect x="120" y="120" width="272" height="64" rx="32"/>
+    <rect x="120" y="224" width="200" height="64" rx="32" opacity="0.75"/>
+    <rect x="120" y="328" width="152" height="64" rx="32" opacity="0.55"/>
+  </g>
+</svg>
