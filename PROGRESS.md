@@ -11,4 +11,14 @@
 | 5 | 이동(dnd-kit) + 리사이즈(핸들) | ✅ 완료 | dndSensors(data-no-dnd 인식 Mouse 4px/Touch 300ms·8px 서브클래스), Timeline DndContext(캔버스 내부, 세로+24px 스냅+부모 제한 모디파이어, autoScroll y 0.15/가속 10, onDragEnd 클램프 수식→moveBlock 1회, 터치 onDragStart=선택 겸용), TimeBlockCard useDraggable(in-place transform scale 1.02+shadow-lg+z-dragging, 이동 중 시간 배지=커밋값, wasDraggedRef 클릭 가드, hover/선택 게이트 핸들), ResizeHandle(24px 히트·안팎 12px·32×4 그립 --blk-solid·touch-none·data-no-dnd), useResizeBlock(§4.4: 15분 엣지 스냅·반대편 고정·반전 없음·resizeBlock 1회·useEdgeAutoScroll 재사용·pointercancel 폐기). 브라우저 스모크: 이동 배지=커밋 일치·상하 경계 클램프·길이 보존·리사이즈 15분 플로어·pointercancel 무변경·탭→에디터·리로드 유지 통과. typecheck/build 클린 |
 | 6 | 완료 + 겹침 + 알림 + 폴리시 | ✅ 완료 | 체크박스 배선(toggleComplete 즉시 커밋·44×44 히트·data-no-dnd)+완료 비주얼(§4.9 40% 페이드·취소선·그림자 제거·--blk-solid 체크, --duration-fast), lanes.ts(클러스터+그리디 lane+excludeId 순수 함수, lane 간격 2px §4.6 추가)+Timeline useMemo 적용(드래그 중 제외→풀폭 90%), alarms.ts(§7 전체: 30초 단일 폴링·hydration 후 시작·visibilitychange 즉시 틱·10분 발화창·firedKey 영속 dedupe·SW showNotification+dev 폴백·토스트 병행·requestNotificationPermission)+main.tsx 배선, Toast(z-toast·4초 자동 소멸), 에디터 권한 요청 alarms 경유, 빈 날 힌트(§6.5), 카드 keydown target 가드. 브라우저 스모크: 체크 토글+리로드 영속·2/3/6-lane 분할·맞닿음 비분할·알림 5건 발화+dedupe(재발화 없음)·빈 날 힌트·다크/라이트 토큰 캐스케이드·320px 가로 스크롤 0 통과. typecheck/build 클린 |
 | 7 | PWA + 최종 QA | ✅ 완료 | VitePWA(§8: autoUpdate·standalone manifest(name/desc는 strings.ts import)·workbox globPatterns+navigateFallback·devOptions false), 아이콘 5종(favicon.svg 소스→qlmanage 래스터화→sips 검증: pwa-192/512, maskable-512 중앙 80% 세이프존, apple-touch 180 full-bleed), index.html 메타(favicon+apple-touch-icon 링크). build→dist에 sw.js·manifest.webmanifest·아이콘 확인, preview+curl로 manifest(application/manifest+json)/sw/아이콘 전부 200 확인 후 서버 종료. typecheck/build 클린. Lighthouse는 브라우저 QA에서 별도 수행 |
-| 8 | Vercel 배포 | ⬜ 대기 | GitHub 인증(gh auth login) 후 진행 |
+| 8 | Vercel 배포 | ⬜ 대기 | 사용자 지시 대기 — "배포 직전"이 현재 목표 지점 |
+
+## 통합 브라우저 QA (2026-07-08, 실제 Chrome)
+
+전 스테이지 수용 기준을 실제 클릭·드래그·리로드로 재검증. **세션 전체 콘솔 에러 0건.**
+
+통과: 타임라인 지오메트리(라벨 25개·캔버스 2360px·초기 스크롤 30% 공식 정확 일치) / 날짜 내비(‹›·오늘 smooth·날짜 분리) / 빈 날 힌트 / 생성 3경로('+'·드래그·플레인 탭 — 에디터 우선, 저장 전 스토어 무변경, 취소 잔여물 0) / 블록 이동(15분 스냅·길이 보존) / 리사이즈(상·하, 반대편 고정) / 탭-어게인 삭제 / 완료 토글+비주얼 / 겹침 lane(균등 폭·2px 간격·맞닿은 경계 비분할) / 하드 리로드 영속 / 라이트·다크 토큰 색 / 320px 무오버플로(iframe 검증) / 알림 엔드투엔드(발화창·토스트 "💼 팀 미팅 — 12:45 시작"·firedAlarms 듀프 키 영속) / 프로덕션 빌드 SW 등록·활성·페이지 제어.
+
+QA 중 발견·수정 2건:
+1. **리사이즈 릴리즈가 에디터를 여는 버그** — pointerup 후 호환 click이 핸들→카드로 버블. ResizeHandle에 click stopPropagation 추가.
+2. **BottomSheet 오픈이 rAF 단독 의존** — 가려진 창(rAF 스로틀)에서 시트가 off-screen에 머무름. 50ms 타임아웃 폴백 추가(멱등).

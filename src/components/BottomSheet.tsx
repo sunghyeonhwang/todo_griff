@@ -47,7 +47,12 @@ export default function BottomSheet({ open, onClose, label, children }: BottomSh
   useEffect(() => {
     if (!open || !mounted) return;
     const raf = requestAnimationFrame(() => setShown(true));
-    return () => cancelAnimationFrame(raf);
+    // 가려진 창(rAF 스로틀)에서 시트가 off-screen에 머무는 것 방지 — 타임아웃 폴백(멱등)
+    const t = window.setTimeout(() => setShown(true), 50);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.clearTimeout(t);
+    };
   }, [open, mounted]);
 
   // 포커스 트랩 + Escape (§5)

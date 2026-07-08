@@ -22,6 +22,9 @@ export default function ResizeHandle({
       {...handlers}
       aria-hidden
       data-no-dnd
+      // 리사이즈 pointerup 뒤 브라우저 호환 click이 카드 onClick으로 버블되어
+      // 에디터가 열리는 것을 차단(§4.4 — 핸들 릴리즈는 편집 진입이 아니다).
+      onClick={(e) => e.stopPropagation()}
       className={`absolute inset-x-0 flex h-6 cursor-ns-resize touch-none items-center justify-center ${
         edge === 'top' ? '-top-3' : '-bottom-3'
       }`}
