@@ -39,21 +39,37 @@ export default function QueInbox() {
   return (
     <section className="shrink-0 border-b border-surface-timeline-line bg-surface-card">
       <div className="flex items-center gap-2 px-3 pt-2">
-        <span className="min-w-0 flex-1 truncate text-sm font-semibold text-text-primary">
+        <span className="truncate text-sm font-semibold text-text-primary">
           {STRINGS.que.inbox.count(inbox.length)}
         </span>
-        <SyncChip syncing={syncing} pending={pending} />
+        {/* 새로고침 — "Que 할 일 (n)" 바로 옆 작은 SVG 아이콘 버튼(§14.6) */}
         <button
           type="button"
           onClick={() => useQueSyncStore.getState().refresh()}
-          className="h-9 rounded-full px-2 text-xs font-medium text-text-secondary active:bg-surface-background"
+          aria-label={STRINGS.que.inbox.refresh}
+          className="flex size-8 shrink-0 items-center justify-center rounded-full text-text-secondary active:bg-surface-background disabled:opacity-40"
+          disabled={syncing}
         >
-          {STRINGS.que.inbox.refresh}
+          <svg
+            aria-hidden
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className={`size-4 ${syncing ? 'animate-spin' : ''}`}
+          >
+            <path d="M23 4v6h-6M1 20v-6h6" />
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+          </svg>
         </button>
+        <div className="min-w-0 flex-1" />
+        <SyncChip syncing={syncing} pending={pending} />
         <button
           type="button"
           onClick={() => useAuthStore.getState().logout()}
-          className="h-9 rounded-full px-2 text-xs font-medium text-text-secondary active:bg-surface-background"
+          className="h-9 shrink-0 rounded-full px-2 text-xs font-medium text-text-secondary active:bg-surface-background"
         >
           {STRINGS.que.inbox.logout}
         </button>

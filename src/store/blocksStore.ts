@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { AlarmOffset, BlockColor, QueSyncState, TimeBlock } from '../types';
 import { DAY_MINUTES, MIN_DURATION, STORE_SNAP, clamp, snapMin } from '../lib/time';
-import { DEFAULT_EMOJI } from '../lib/emojis';
+import { DEFAULT_ICON_ID, isIconId } from '../lib/icons';
 import { createSafeStorage } from '../lib/safeStorage';
 import { STRINGS } from '../lib/strings';
 import { BLOCK_COLOR_KEYS } from '../lib/tokens';
@@ -23,7 +23,7 @@ export interface NewBlockInput {
   startMin: number;
   endMin: number;
   title?: string;
-  emoji?: string;
+  icon?: string;
   color?: BlockColor;
   alarm?: AlarmOffset | null;
   note?: string;
@@ -87,18 +87,21 @@ function isQueSyncState(v: unknown): v is QueSyncState {
 /** 구조 가드 실패 항목은 드롭, 필드 단위 이상은 기본값 보정. 미지 필드는 보존(§13.2 tombstone 대비). */
 function sanitizeBlock(fallbackId: string, v: unknown): TimeBlock | null {
   if (typeof v !== 'object' || v === null) return null;
-  const b = v as Record<string, unknown>;
+  // 구 스키마(v1)의 emoji 필드는 여기서 흡수해 버린다 — 아이콘 id로 매핑되지 않으므로 보존 대상이
+  // 아니다(§13.2의 '미지 필드'와 구분). 나머지 미지 필드만 rest로 보존한다.
+  const { emoji: _legacyEmoji, ...b } = v as Record<string, unknown>;
   if (typeof b.dateKey !== 'string' || !DATE_KEY_RE.test(b.dateKey)) return null;
   if (typeof b.startMin !== 'number' || !Number.isFinite(b.startMin)) return null;
   if (typeof b.endMin !== 'number' || !Number.isFinite(b.endMin)) return null;
   const now = Date.now();
   return {
-    ...b, // 미지 필드 보존 — 서버 마이그레이션 하위 호환(§13.2)
+    ...b, // 미지 필드 보존 — 서버 마이그레이션 하위 호환(§13.2). 구 emoji는 위에서 제거됨.
     id: typeof b.id === 'string' && b.id !== '' ? b.id : fallbackId,
     dateKey: b.dateKey,
     ...normalizeRange(b.startMin, b.endMin),
     title: normalizeTitle(typeof b.title === 'string' ? b.title : ''),
-    emoji: typeof b.emoji === 'string' && b.emoji !== '' ? b.emoji : DEFAULT_EMOJI,
+    // 아이콘 id 검증 — 알 수 없으면(구 이모지 문자 포함) 기본 'star'로 마이그레이션(v1→v2).
+    icon: isIconId(b.icon) ? b.icon : DEFAULT_ICON_ID,
     color: isBlockColor(b.color) ? b.color : DEFAULT_COLOR, // 알 수 없는 color → 'blue'(§3.1)
     alarm: isAlarmOffset(b.alarm) ? b.alarm : null,
     note: typeof b.note === 'string' ? b.note : '',
@@ -148,7 +151,7 @@ export const useBlocksStore = create<BlocksState & BlocksActions>()(
           dateKey: input.dateKey,
           ...normalizeRange(input.startMin, input.endMin),
           title: normalizeTitle(input.title ?? ''),
-          emoji: input.emoji ?? DEFAULT_EMOJI,
+          icon: input.icon ?? DEFAULT_ICON_ID,
           color: input.color ?? DEFAULT_COLOR,
           alarm: input.alarm ?? null,
           note: input.note ?? '',
@@ -244,10 +247,11 @@ export const useBlocksStore = create<BlocksState & BlocksActions>()(
     }),
     {
       name: 'dayblocks:data',
-      version: 1,
+      version: 2,
       storage: createSafeStorage<PersistedBlocksState>(),
       partialize: (s) => ({ blocks: s.blocks, firedAlarms: s.firedAlarms }),
-      // 버전 업 시 case 폴스루로 단계 변환(§3.1). v1이 최초 스키마 — 현재는 통과만.
+      // 버전 업 시 case 폴스루로 단계 변환(§3.1). v1→v2: emoji→icon 리네임인데, 실제 변환은
+      // merge의 sanitizeBlock가 매 로드마다 수행(구 emoji 흡수 + icon 기본화)하므로 여기선 통과만.
       migrate: (persisted) => persisted as PersistedBlocksState,
       // merge는 매 하이드레이션마다 실행 — "매 로드마다 sanitize"를 여기서 보장(§3.1).
       merge: (persisted, current) => {

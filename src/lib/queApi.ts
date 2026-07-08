@@ -7,7 +7,7 @@
 // 시간 표현 경계 변환(절대 ISO ↔ 벽시계 dateKey+분)도 이 경계에서만 오간다(§14.5).
 
 import { useAuthStore } from '../store/authStore';
-import { DEFAULT_EMOJI } from './emojis';
+import { DEFAULT_ICON_ID } from './icons';
 import { STRINGS } from './strings';
 import { DAY_MINUTES, DEFAULT_DURATION, clamp, fromDateKey, toDateKey } from './time';
 import type { NewBlockInput } from '../store/blocksStore';
@@ -221,7 +221,7 @@ export function mapTimedTask(task: QueTask): QueTaskMapping | null {
       title: task.title,
       note: typeof task.description === 'string' ? task.description : '',
       color: statusToColor(task.status),
-      emoji: DEFAULT_EMOJI,
+      icon: DEFAULT_ICON_ID,
       queTaskId: task.id,
       syncState: 'synced',
     },
@@ -239,7 +239,7 @@ export function inboxTaskToBlockInput(task: QueTask, dateKey: string, startMin: 
     title: task.title,
     note: typeof task.description === 'string' ? task.description : '',
     color: statusToColor(task.status),
-    emoji: DEFAULT_EMOJI,
+    icon: DEFAULT_ICON_ID,
     queTaskId: task.id,
     syncState: 'pending', // 최초 일정 부여 → move 라이트백 대기(§14.6)
   };

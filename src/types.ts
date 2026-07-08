@@ -17,7 +17,7 @@ export interface TimeBlock {
   startMin: number;        // 0..1425, 5분 배수 (스토어 액션이 강제)
   endMin: number;          // startMin+15 .. 1440, 5분 배수
   title: string;           // 저장 시 빈 값/공백이면 '새 일정'으로 대체 (저장 비활성화 없음)
-  emoji: string;           // 큐레이션 목록 중 1개, 기본 '📌'
+  icon: string;            // 큐레이션 아이콘 8개 중 1개(id, lib/icons.ts), 기본 'star'
   color: BlockColor;       // 기본 'blue'
   alarm: AlarmOffset | null; // null = 알림 없음 (끄면 오프셋은 에디터 로컬에만 세션 유지)
   note: string;

@@ -10,6 +10,34 @@
 /* dark: 변형의 단일 신호 = html[data-theme] — DESIGN.md §6.3 */
 @custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
 
+/* Freesentation(프리젠테이션) — 로컬 번들(public/fonts, 오프라인 PWA라 외부 CDN 금지 §6.4).
+   noonnu 서브셋 woff2(굵기당 ~250KB). 앱이 실제 쓰는 4굵기만 번들: 400·500·600·700.
+   font-display: swap — 로드 전 시스템 폰트로 즉시 렌더(FOIT 방지). */
+@font-face {
+  font-family: 'Freesentation';
+  src: url('/fonts/Freesentation-4Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Freesentation';
+  src: url('/fonts/Freesentation-5Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Freesentation';
+  src: url('/fonts/Freesentation-6SemiBold.woff2') format('woff2');
+  font-weight: 600;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Freesentation';
+  src: url('/fonts/Freesentation-7Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-display: swap;
+}
+
 @theme inline {
   /* Typography */
   --font-sans: var(--font-sans);

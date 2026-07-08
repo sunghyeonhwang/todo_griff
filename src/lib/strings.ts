@@ -20,8 +20,8 @@ export const STRINGS = {
     cancel: '취소',
     save: '저장',
     titlePlaceholder: '제목',
-    emojiButtonLabel: '이모지·색상 선택',
-    emojiGridLabel: '이모지',
+    iconButtonLabel: '아이콘·색상 선택',
+    iconGridLabel: '아이콘',
     colorPickerLabel: '색상',
     startLabel: '시작',
     endLabel: '종료',
@@ -54,6 +54,18 @@ export const STRINGS = {
 
   card: {
     completeLabel: '완료 표시',
+  },
+
+  /** 블록 아이콘 한글 라벨 — lib/icons.ts CURATED_ICONS id와 1:1(§5 필드 3). 피커 aria-label. */
+  icons: {
+    star: '중요',
+    calendar: '일정',
+    dialog: '대화',
+    notification: '알림',
+    paperplane: '발송',
+    camera: '사진',
+    design: '디자인',
+    compass: '탐색',
   },
 
   timeline: {
@@ -96,13 +108,14 @@ export const STRINGS = {
   // Que 연동 카피 — DESIGN.md §14.8 (컴포넌트 하드코딩 금지, 규칙5)
   que: {
     login: {
-      title: 'Que 계정 연결',
-      subtitle: '회사 Que 작업을 타임라인에 얹으려면 로그인하세요',
-      emailLabel: '이메일',
-      emailPlaceholder: 'name@griff.co.kr',
-      passwordLabel: '비밀번호',
-      passwordPlaceholder: '비밀번호',
-      submit: '연결',
+      title: 'QUE 연결',
+      subtitle: 'QUE 작업을 타임라인에 연결하기',
+      google: 'Log in with Google',
+      googleSoon: 'Google 로그인은 준비 중이에요', // 구글 auth 미구현 — 버튼만 노출(비작동)
+      or: 'or',
+      emailPlaceholder: 'Email',
+      passwordPlaceholder: 'Password',
+      submit: '로그인',
       submitting: '연결 중…',
       later: '나중에',
       genericError: '이메일 또는 비밀번호를 확인해 주세요',
@@ -114,7 +127,7 @@ export const STRINGS = {
       place: '오늘에 배치',
       connect: 'Que 계정 연결',
       refresh: '새로고침',
-      logout: '연결 해제',
+      logout: '로그아웃',
       noProject: '프로젝트 없음',
     },
     sync: {
@@ -130,7 +143,7 @@ export const STRINGS = {
     },
     toast: {
       connected: (name: string) => `${name}님, Que에 연결됐어요`,
-      disconnected: 'Que 연결을 해제했어요',
+      disconnected: 'Que에서 로그아웃했어요',
       sessionExpired: 'Que 세션이 만료됐어요. 다시 연결해 주세요',
       syncFailed: 'Que 동기화에 실패한 항목이 있어요',
       placed: 'Que 할 일을 타임라인에 배치했어요',

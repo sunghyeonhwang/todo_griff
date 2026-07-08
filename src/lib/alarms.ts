@@ -68,7 +68,8 @@ async function showSystemNotification(title: string, body: string, tag: string):
 
 /** 1회 발화 — 인앱 토스트 항상 + (권한 시) OS 알림 병행(§7) */
 function fire(block: TimeBlock, key: string): void {
-  const title = `${block.emoji} ${block.title}`;
+  // 제목만 사용 — 블록 아이콘은 SVG라 알림 문자열에 못 넣는다(OS 알림 아이콘은 앱 아이콘 유지).
+  const title = block.title;
   const body = STRINGS.alarm.startsAt(formatMinutes(block.startMin));
   useUiStore.getState().showToast(`${title} — ${body}`);
   void showSystemNotification(title, body, key);

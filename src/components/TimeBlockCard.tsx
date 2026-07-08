@@ -18,6 +18,7 @@ import {
 } from '../lib/time';
 import { Z_INDEX } from '../lib/tokens';
 import { STRINGS } from '../lib/strings';
+import { resolveIcon } from '../lib/icons';
 import { useBlocksStore } from '../store/blocksStore';
 import { useUiStore } from '../store/uiStore';
 
@@ -45,7 +46,7 @@ import { useUiStore } from '../store/uiStore';
 // - 체크박스(§4.9): 24px 원 + 44×44 히트영역(after 확장, Apple HIG), data-no-dnd +
 //   stopPropagation — 에디터 안 열림, toggleComplete 즉시 커밋(명시적 저장의 유일한 예외).
 // - 완료 비주얼(§4.9, --duration-fast): 채움 40% 불투명도, 제목 취소선 + text-tertiary,
-//   이모지 50%, 그림자 제거, 체크박스 --blk-solid 채움 + 흰 체크(--text-on-solid).
+//   아이콘 배지 50%, 그림자 제거, 체크박스 --blk-solid 채움 + 흰 체크(--text-on-solid).
 //   완료 블록도 드래그·리사이즈·편집 가능.
 // - pointerdown stopPropagation: 빈 면 드래그 생성(§4.2)이 카드 위에서 시작되지 않게
 //   캔버스 핸들러 도달을 차단 — dnd 센서는 mousedown/touchstart를 들어 영향 없음(§4.3).
@@ -85,7 +86,7 @@ export default function TimeBlockCard({
   const endMin = preview?.endMin ?? block.endMin;
   const top = minutesToY(startMin);
   const height = minutesToY(endMin) - top;
-  // 시간 캡션은 높이 ≥ 40px(25분)일 때만 — 15분 블록(24px)은 이모지+제목 한 줄(§4.8)
+  // 시간 캡션은 높이 ≥ 40px(25분)일 때만 — 15분 블록(24px)은 아이콘+제목 한 줄(§4.8)
   const showCaption = height >= CAPTION_MIN_HEIGHT;
 
   // 가로 lane 지오메트리(§4.6) — 트랙(거터~우측 인셋)을 laneCount 균등 분할.
@@ -165,7 +166,7 @@ export default function TimeBlockCard({
           done ? 'bg-(--blk-bg)/40' : 'bg-(--blk-bg)'
         } ${isDragging ? 'shadow-lg' : done ? 'shadow-none' : 'shadow-block'}`}
       >
-        {/* 내용(§4.8, Structured 정체성): 원형 이모지 배지(색 링) + 제목/캡션 스택 + 우측 체크박스.
+        {/* 내용(§4.8, Structured 정체성): 원형 아이콘 배지(색 링) + 제목/캡션 스택 + 우측 체크박스.
             콤팩트(<25분, 24px 행)는 배지 축소 + 단일 행. */}
         <div
           className={`flex gap-2 pr-1.5 ${
@@ -174,11 +175,15 @@ export default function TimeBlockCard({
         >
           <span
             aria-hidden
-            className={`flex shrink-0 items-center justify-center rounded-full bg-surface-card leading-none shadow-sm ring-2 ring-(--blk-solid) transition-opacity duration-(--duration-fast) ${
-              showCaption ? 'size-7 text-[15px]' : 'size-5 text-[11px]'
+            className={`flex shrink-0 items-center justify-center rounded-full bg-surface-card shadow-sm ring-2 ring-(--blk-solid) transition-opacity duration-(--duration-fast) ${
+              showCaption ? 'size-7' : 'size-5'
             } ${done ? 'opacity-50' : ''}`}
           >
-            {block.emoji}
+            <img
+              src={resolveIcon(block.icon).src}
+              alt=""
+              className={showCaption ? 'size-6' : 'size-4'}
+            />
           </span>
           <div className="min-w-0 flex-1">
             <div

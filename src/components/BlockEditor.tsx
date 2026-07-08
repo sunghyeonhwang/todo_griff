@@ -2,9 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import BottomSheet from './BottomSheet';
 import ColorSwatchRow from './ColorSwatchRow';
-import EmojiGrid from './EmojiGrid';
+import IconGrid from './IconGrid';
 import { requestNotificationPermission } from '../lib/alarms';
-import { DEFAULT_EMOJI } from '../lib/emojis';
+import { DEFAULT_ICON_ID, resolveIcon } from '../lib/icons';
 import { STRINGS } from '../lib/strings';
 import {
   DAY_MINUTES,
@@ -20,7 +20,7 @@ import type { AlarmOffset, BlockColor, EditorState } from '../types';
 
 // 에디터 바텀시트 — DESIGN.md §5 (Structured 아나토미)
 // 레이아웃(사용자 제공 스크린샷 기준):
-//   [컬러 헤더 밴드 --blk-solid] X 닫기 · 대형 원형 이모지 배지(탭=피커) ·
+//   [컬러 헤더 밴드 --blk-solid] X 닫기 · 대형 원형 아이콘 배지(탭=피커) ·
 //     "10:00 ~ 10:15 (15분)" 요약 · 밑줄 제목 입력 · (edit) 완료 원
 //   [본문 surface-background] 날짜 행 카드 → (피커 카드) → 시간 카드 →
 //     소요시간 pill 선택기 → 알림 카드 → 메모 카드 → 삭제
@@ -41,7 +41,7 @@ type OpenEditor = Exclude<EditorState, { mode: 'closed' }>;
 
 interface FormState {
   title: string;
-  emoji: string;
+  icon: string;
   color: BlockColor;
   startMin: number;
   endMin: number;
@@ -113,7 +113,7 @@ function initialForm(editor: OpenEditor): FormState {
     if (b) {
       return {
         title: b.title,
-        emoji: b.emoji,
+        icon: b.icon,
         color: b.color,
         startMin: b.startMin,
         endMin: b.endMin,
@@ -129,7 +129,7 @@ function initialForm(editor: OpenEditor): FormState {
     editor.mode === 'create' ? editor.draft : { startMin: 0, endMin: MIN_DURATION };
   return {
     title: '',
-    emoji: DEFAULT_EMOJI,
+    icon: DEFAULT_ICON_ID,
     color: DEFAULT_COLOR,
     startMin: draft.startMin,
     endMin: draft.endMin,
@@ -181,7 +181,7 @@ function EditorForm({ editor }: { editor: OpenEditor }) {
     if (!timeValid) return;
     const fields = {
       title: form.title,
-      emoji: form.emoji,
+      icon: form.icon,
       color: form.color,
       startMin: form.startMin,
       endMin: form.endMin,
@@ -260,12 +260,12 @@ function EditorForm({ editor }: { editor: OpenEditor }) {
         <div className="mt-2 flex items-center gap-4">
           <button
             type="button"
-            aria-label={STRINGS.editor.emojiButtonLabel}
+            aria-label={STRINGS.editor.iconButtonLabel}
             aria-expanded={pickerOpen}
             onClick={() => setPickerOpen((v) => !v)}
-            className="flex size-16 shrink-0 items-center justify-center rounded-full bg-[rgba(255,255,255,0.25)] text-3xl leading-none ring-4 ring-surface-card active:scale-95"
+            className="flex size-20 shrink-0 items-center justify-center rounded-full bg-[rgba(255,255,255,0.25)] ring-4 ring-surface-card active:scale-95"
           >
-            {form.emoji}
+            <img src={resolveIcon(form.icon).src} alt="" className="size-16" />
           </button>
           <div className="min-w-0 flex-1">
             <div className="text-sm tabular-nums text-text-on-solid/85">{summary}</div>
@@ -328,10 +328,10 @@ function EditorForm({ editor }: { editor: OpenEditor }) {
           )}
         </div>
 
-        {/* 이모지·색상 피커 카드 — 밴드 배지 탭으로 토글 */}
+        {/* 아이콘·색상 피커 카드 — 밴드 배지 탭으로 토글 */}
         {pickerOpen && (
           <div className="flex flex-wrap items-start gap-4 rounded-lg bg-surface-card p-3.5 shadow-sm">
-            <EmojiGrid value={form.emoji} onSelect={(emoji) => patch({ emoji })} />
+            <IconGrid value={form.icon} onSelect={(icon) => patch({ icon })} />
             <ColorSwatchRow value={form.color} onSelect={(color) => patch({ color })} />
           </div>
         )}

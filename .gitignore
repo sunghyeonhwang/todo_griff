@@ -9,6 +9,9 @@ dev-dist/
 .env
 .env.*
 
+# 디자인 원본 아이콘 드롭(작업용) — 앱은 src/icons/ 벤더 사본을 번들한다
+/icons/
+
 # OS
 .DS_Store
 
