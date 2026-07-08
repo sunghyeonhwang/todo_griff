@@ -11,6 +11,9 @@ import { useUiStore } from '../store/uiStore';
 //   <button> 중첩을 피한다.
 // - 체크박스는 마크업만(24px 원 + aria + data-no-dnd + stopPropagation) —
 //   토글 배선·44px 히트영역·완료 비주얼은 Stage 6(§4.9), dnd-kit 장착(이동)은 Stage 5.
+// - pointerdown stopPropagation: 빈 면 드래그 생성(§4.2)이 기존 블록 위에서 시작되지 않게
+//   캔버스 핸들러 도달을 차단(Stage 4). dnd-kit 센서는 카드 자신에 붙으므로(Stage 5) 영향 없음.
+//   + contextmenu preventDefault / touch-callout 차단(§4.5 하드닝 — 카드·면 공통).
 
 export default function TimeBlockCard({ id }: { id: string }) {
   const block = useBlocksStore((s) => s.blocks[id]);
@@ -30,13 +33,15 @@ export default function TimeBlockCard({ id }: { id: string }) {
       tabIndex={0}
       data-color={block.color}
       onClick={open}
+      onPointerDown={(e) => e.stopPropagation()}
+      onContextMenu={(e) => e.preventDefault()}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
           open();
         }
       }}
-      className="absolute right-2 z-(--z-block) touch-pan-y overflow-hidden rounded-md bg-(--blk-bg) shadow-block outline-none select-none focus-visible:ring-2 focus-visible:ring-accent-primary"
+      className="absolute right-2 z-(--z-block) touch-pan-y overflow-hidden rounded-md bg-(--blk-bg) shadow-block outline-none select-none [-webkit-touch-callout:none] focus-visible:ring-2 focus-visible:ring-accent-primary"
       style={{ top, height, left: RULER_WIDTH }}
     >
       {/* 좌측 3px 라운드 액센트 바(§4.8) */}

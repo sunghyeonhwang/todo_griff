@@ -1,7 +1,9 @@
 import { useCallback, useImperativeHandle, useLayoutEffect, useMemo, useRef, type Ref } from 'react';
+import DragCreateGhost from './DragCreateGhost';
 import NowLine from './NowLine';
 import TimeBlockCard from './TimeBlockCard';
 import TimelineGrid from './TimelineGrid';
+import { useDragCreate } from '../hooks/useDragCreate';
 import {
   BOTTOM_PAD,
   DAY_HEIGHT,
@@ -24,6 +26,10 @@ import { useUiStore } from '../store/uiStore';
 //   — 날짜 전환(‹ ›)·나우 틱·visibilitychange에도 사용자 스크롤 위치 불가침.
 // - 캔버스에 활성 날짜 블록 카드 렌더(Stage 3, 풀폭 — lane 분할은 Stage 6).
 //   Stage 5: DndContext 장착(캔버스 내부 마운트).
+// - 드래그 생성(Stage 4, §4.2): useDragCreate 핸들러는 캔버스(빈 면)에만 스프레드 —
+//   블록 카드가 pointerdown을 stopPropagation 하므로 기존 블록 위에서는 시작 불가.
+//   빈 면 touch-action: pan-y(§4.5 표) — 생성은 400ms 롱프레스로만 무장.
+//   + select-none / touch-callout 차단 / contextmenu preventDefault(§4.5 하드닝).
 
 export interface TimelineHandle {
   /** 나우라인을 뷰포트 상단 SCROLL_ANCHOR(30%) 지점으로 스크롤(§4.7) */
@@ -32,6 +38,7 @@ export interface TimelineHandle {
 
 export default function Timeline({ ref }: { ref?: Ref<TimelineHandle> }) {
   const scrollerRef = useRef<HTMLElement>(null);
+  const { draft, surfaceHandlers } = useDragCreate(scrollerRef);
 
   // 활성 날짜의 블록 id 목록 — §3.3: 셀렉터에서 filter 금지(매번 새 배열 → 리렌더 폭풍).
   // 안정된 blocks 맵을 선택한 뒤 useMemo로 파생. 정렬은 startMin 오름차순, 동률 시 긴 블록 우선(§4.6).
@@ -74,11 +81,16 @@ export default function Timeline({ ref }: { ref?: Ref<TimelineHandle> }) {
         paddingBottom: `calc(${BOTTOM_PAD}px + env(safe-area-inset-bottom))`,
       }}
     >
-      <div className="relative" style={{ height: DAY_HEIGHT }}>
+      <div
+        {...surfaceHandlers}
+        className="relative touch-pan-y select-none [-webkit-touch-callout:none]"
+        style={{ height: DAY_HEIGHT }}
+      >
         <TimelineGrid />
         {dayBlockIds.map((id) => (
           <TimeBlockCard key={id} id={id} />
         ))}
+        <DragCreateGhost draft={draft} />
         <NowLine />
       </div>
     </main>
