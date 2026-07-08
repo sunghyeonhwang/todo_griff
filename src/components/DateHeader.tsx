@@ -1,6 +1,6 @@
 import { useShallow } from 'zustand/react/shallow';
 import { STRINGS } from '../lib/strings';
-import { formatHeaderDate } from '../lib/time';
+import { DAY_MINUTES, DEFAULT_DURATION, formatHeaderDate, nowMinutes } from '../lib/time';
 import { useUiStore } from '../store/uiStore';
 
 // 날짜 내비게이션 헤더 — DESIGN.md §9, §6.5
@@ -8,7 +8,8 @@ import { useUiStore } from '../store/uiStore';
 // - ‹ › 화살표(goRelative ±1) · ko 날짜 라벨("7월 8일 수요일") · "오늘" · "+" 버튼.
 // - "오늘" = goToToday(날짜 변경) + onToday(App이 Timeline.scrollToNow('smooth')로 배선,
 //   이미 오늘이어도 스크롤 실행 — §4.7).
-// - "+"는 자리만 — Stage 3에서 openCreate(다음 정시 60분 드래프트) 배선(§5).
+// - "+" = 활성 날짜에 create 드래프트로 에디터 오픈(§5):
+//   start = min(다음 정시, 1380=23:00), end = min(start+60, 1440). 스토어 쓰기는 저장 시 1회.
 
 interface DateHeaderProps {
   /** "오늘" 탭 시 goToToday 직후 호출 — 스크롤-투-나우 smooth 트리거 */
@@ -16,17 +17,31 @@ interface DateHeaderProps {
 }
 
 export default function DateHeader({ onToday }: DateHeaderProps) {
-  const { activeDateKey, goRelative, goToToday } = useUiStore(
+  const { activeDateKey, goRelative, goToToday, openCreate } = useUiStore(
     useShallow((s) => ({
       activeDateKey: s.activeDateKey,
       goRelative: s.goRelative,
       goToToday: s.goToToday,
+      openCreate: s.openCreate,
     })),
   );
 
   const handleToday = () => {
     goToToday();
     onToday();
+  };
+
+  // "+" 드래프트(§5): 다음 정시(지금이 정시면 그 시각), 23:00 상한 · 60분 길이 · 24:00 클램프
+  const handleAdd = () => {
+    const startMin = Math.min(
+      Math.ceil(nowMinutes() / 60) * 60,
+      DAY_MINUTES - DEFAULT_DURATION,
+    );
+    openCreate({
+      dateKey: activeDateKey,
+      startMin,
+      endMin: Math.min(startMin + DEFAULT_DURATION, DAY_MINUTES),
+    });
   };
 
   return (
@@ -59,10 +74,10 @@ export default function DateHeader({ onToday }: DateHeaderProps) {
         >
           {STRINGS.header.today}
         </button>
-        {/* Stage 3: openCreate 배선 예정 — 현재는 자리만(§5) */}
         <button
           type="button"
           aria-label={STRINGS.header.addBlock}
+          onClick={handleAdd}
           className="flex size-9 shrink-0 items-center justify-center rounded-full text-xl text-accent-primary active:bg-surface-background"
         >
           +
