@@ -1,0 +1,67 @@
+import { useCallback, useImperativeHandle, useLayoutEffect, useRef, type Ref } from 'react';
+import NowLine from './NowLine';
+import TimelineGrid from './TimelineGrid';
+import {
+  BOTTOM_PAD,
+  DAY_HEIGHT,
+  SCROLL_ANCHOR,
+  TOP_PAD,
+  isTodayKey,
+  minutesToY,
+  nowMinutes,
+} from '../lib/time';
+import { useUiStore } from '../store/uiStore';
+
+// 타임라인 — DESIGN.md §4.1, §4.7, §6.5
+// - 스크롤 컨테이너 소유: flex-1 min-h-0 overflow-y-auto, touch-action pan-y,
+//   overscroll-behavior-y contain(풀투리프레시 차단). 휴지 상태 non-passive 리스너 0개(§4.5).
+// - 캔버스: DAY_HEIGHT(2304px) relative — 00:00 원점. TOP_PAD/BOTTOM_PAD(+하단 safe-area)는
+//   스크롤러 패딩 → clientYToContentY의 TOP_PAD 보정과 일치(§4.1).
+// - 오토스크롤 규칙(§4.7 단일 규범): 최초 마운트(오늘) = instant / "오늘" 버튼 = smooth
+//   (App이 TimelineHandle.scrollToNow로 배선, 이미 오늘이어도 실행) / 그 외 절대 자동 스크롤 없음
+//   — 날짜 전환(‹ ›)·나우 틱·visibilitychange에도 사용자 스크롤 위치 불가침.
+// - Stage 3+: 캔버스에 블록 카드, Stage 5: DndContext 장착(캔버스 내부 마운트).
+
+export interface TimelineHandle {
+  /** 나우라인을 뷰포트 상단 SCROLL_ANCHOR(30%) 지점으로 스크롤(§4.7) */
+  scrollToNow(behavior: ScrollBehavior): void;
+}
+
+export default function Timeline({ ref }: { ref?: Ref<TimelineHandle> }) {
+  const scrollerRef = useRef<HTMLElement>(null);
+
+  const scrollToNow = useCallback((behavior: ScrollBehavior) => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    // 목표: 나우라인 y(캔버스 원점 + TOP_PAD)가 뷰포트 상단 30% 지점에 오도록.
+    // scrollTo가 [0, scrollHeight-clientHeight]로 자체 클램프(자정 근처 안전).
+    const top = TOP_PAD + minutesToY(nowMinutes()) - el.clientHeight * SCROLL_ANCHOR;
+    el.scrollTo({ top, behavior });
+  }, []);
+
+  useImperativeHandle(ref, () => ({ scrollToNow }), [scrollToNow]);
+
+  // 최초 마운트가 오늘이면 instant 스크롤-투-나우 — 페인트 전(useLayoutEffect) 1회만.
+  const didInitialScroll = useRef(false);
+  useLayoutEffect(() => {
+    if (didInitialScroll.current) return;
+    didInitialScroll.current = true;
+    if (isTodayKey(useUiStore.getState().activeDateKey)) scrollToNow('instant');
+  }, [scrollToNow]);
+
+  return (
+    <main
+      ref={scrollerRef}
+      className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-y-contain"
+      style={{
+        paddingTop: TOP_PAD,
+        paddingBottom: `calc(${BOTTOM_PAD}px + env(safe-area-inset-bottom))`,
+      }}
+    >
+      <div className="relative" style={{ height: DAY_HEIGHT }}>
+        <TimelineGrid />
+        <NowLine />
+      </div>
+    </main>
+  );
+}
