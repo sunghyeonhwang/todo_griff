@@ -3,6 +3,7 @@ import { useShallow } from 'zustand/react/shallow';
 import BottomSheet from './BottomSheet';
 import ColorSwatchRow from './ColorSwatchRow';
 import EmojiGrid from './EmojiGrid';
+import { requestNotificationPermission } from '../lib/alarms';
 import { DEFAULT_EMOJI } from '../lib/emojis';
 import { STRINGS } from '../lib/strings';
 import { DAY_MINUTES, MIN_DURATION, STORE_SNAP, formatMinutes } from '../lib/time';
@@ -16,7 +17,8 @@ import type { AlarmOffset, BlockColor, EditorState } from '../types';
 // - 저장 시맨틱: 명시적 저장 — 스토어 변이는 저장 버튼의 add/update 정확히 1회, 취소는 자명하게 무변경.
 // - 빈 제목은 스토어가 '새 일정'으로 대체(§2) — 제목 때문에 저장이 비활성화되는 일 없음.
 //   저장 비활성 조건은 end ≤ start 하나뿐(인라인 힌트 병행).
-// - 알림 토글은 UI + 권한 요청(사용자 제스처 안)까지만 — 발화 배선은 Stage 6(§7).
+// - 알림 토글: 최초 켜기의 사용자 제스처 안에서만 권한 요청(lib/alarms 경유 §9) —
+//   발화는 30초 폴링 스케줄러(§7). 거부/미지원이어도 인앱 토스트로 발화(기능 유지).
 
 const DELETE_CONFIRM_MS = 3000;              // 탭-어게인 확인 유지 시간(§5 — "3초간")
 const DEFAULT_ALARM_OFFSET: AlarmOffset = 10; // 최초 켜기 기본 오프셋(§5 미규정 — 10분 전 채택)
@@ -189,12 +191,12 @@ function EditorForm({ editor }: { editor: OpenEditor }) {
     closeEditor();
   };
 
-  // ----- 알림 토글: 최초 켜기 = 사용자 제스처 안에서만 권한 요청(§5·§7) -----
+  // ----- 알림 토글: 최초 켜기 = 사용자 제스처 안에서만 권한 요청(§5·§7, lib/alarms 경유 §9) -----
   const handleAlarmToggle = () => {
     const next = !form.alarmOn;
     patch({ alarmOn: next });
-    if (next && notifPermission === 'default' && 'Notification' in window) {
-      void Notification.requestPermission().then((p) => setNotifPermission(p));
+    if (next && notifPermission === 'default') {
+      void requestNotificationPermission().then(setNotifPermission);
     }
   };
 

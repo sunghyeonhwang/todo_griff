@@ -48,6 +48,15 @@ export const STRINGS = {
     completeLabel: '완료 표시',
   },
 
+  timeline: {
+    emptyDay: '계획이 없어요 ✨',   // 빈 날 힌트(§6.5) — 09:00–11:00 밴드
+  },
+
+  alarm: {
+    /** OS 알림·인앱 토스트 본문 — 예: '09:00 시작' (§7) */
+    startsAt: (time: string) => `${time} 시작`,
+  },
+
   colors: {
     blue: '파랑',
     green: '초록',

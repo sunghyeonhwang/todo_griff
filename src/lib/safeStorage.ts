@@ -10,7 +10,7 @@ import { useUiStore } from '../store/uiStore';
 // 컴포넌트/훅의 localStorage 직접 접근 금지 — 이 모듈이 유일한 통과점이다.
 
 function toast(message: string): void {
-  // Toast 컴포넌트 렌더는 Stage 6 — 상태는 지금부터 정확히 기록된다(§3.2 showToast).
+  // components/Toast가 uiStore.toast를 렌더(자동 소멸, §9) — 여기는 상태 기록만.
   useUiStore.getState().showToast(message);
 }
 

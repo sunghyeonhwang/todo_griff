@@ -1,4 +1,4 @@
-import { useCallback, useImperativeHandle, useLayoutEffect, useMemo, useRef, type Ref } from 'react';
+import { useCallback, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, type Ref } from 'react';
 import { DndContext, useSensor, useSensors } from '@dnd-kit/core';
 import type { AutoScrollOptions, DragEndEvent, DragStartEvent, Modifiers } from '@dnd-kit/core';
 import { createSnapModifier, restrictToParentElement, restrictToVerticalAxis } from '@dnd-kit/modifiers';
@@ -14,12 +14,17 @@ import {
   MouseSensor,
   TouchSensor,
 } from '../lib/dndSensors';
+import { computeLanes } from '../lib/lanes';
+import { STRINGS } from '../lib/strings';
 import {
   BOTTOM_PAD,
   DAY_HEIGHT,
   DAY_MINUTES,
+  EMPTY_HINT_END_MIN,
+  EMPTY_HINT_START_MIN,
   GESTURE_SNAP,
   PX_PER_MIN,
+  RULER_WIDTH,
   SCROLL_ANCHOR,
   TOP_PAD,
   clamp,
@@ -47,6 +52,8 @@ import { useUiStore } from '../store/uiStore';
 //   블록 카드가 pointerdown을 stopPropagation 하므로 기존 블록 위에서는 시작 불가.
 //   빈 면 touch-action: pan-y(§4.5 표) — 생성은 400ms 롱프레스로만 무장.
 //   + select-none / touch-callout 차단 / contextmenu preventDefault(§4.5 하드닝).
+// - 겹침 lane(Stage 6, §4.6): computeLanes를 useMemo로 파생, 드래그 중 블록은
+//   excludeId로 제외(카드가 풀폭 90%로 위에 렌더). 빈 날 힌트(§6.5)는 드래프트 중 숨김.
 
 // 이동 모디파이어(§4.3) — 시각 보조일 뿐, 최종 권위는 onDragEnd 클램프 수식.
 // 세로 고정 → 15분 그리드(= 24px, §4.1 정수) 스냅 → 캔버스(부모) 경계 제한.
@@ -73,18 +80,29 @@ export default function Timeline({ ref }: { ref?: Ref<TimelineHandle> }) {
   const scrollerRef = useRef<HTMLElement>(null);
   const { draft, surfaceHandlers } = useDragCreate(scrollerRef);
 
-  // 활성 날짜의 블록 id 목록 — §3.3: 셀렉터에서 filter 금지(매번 새 배열 → 리렌더 폭풍).
+  // 활성 날짜의 블록 목록 — §3.3: 셀렉터에서 filter 금지(매번 새 배열 → 리렌더 폭풍).
   // 안정된 blocks 맵을 선택한 뒤 useMemo로 파생. 정렬은 startMin 오름차순, 동률 시 긴 블록 우선(§4.6).
   const activeDateKey = useUiStore((s) => s.activeDateKey);
   const blocks = useBlocksStore((s) => s.blocks);
-  const dayBlockIds = useMemo(
+  const dayBlocks = useMemo(
     () =>
       Object.values(blocks)
         .filter((b) => b.dateKey === activeDateKey)
-        .sort((a, b) => a.startMin - b.startMin || b.endMin - a.endMin || a.id.localeCompare(b.id))
-        .map((b) => b.id),
+        .sort((a, b) => a.startMin - b.startMin || b.endMin - a.endMin || a.id.localeCompare(b.id)),
     [blocks, activeDateKey],
   );
+
+  // 겹침 lane 배치(§4.6) — 이동 드래그 중 블록은 excludeId로 제외(풀폭 90% 위 렌더,
+  // 이웃 리플로 방지), 드롭·취소 시 1회 재계산. 컴포넌트 레벨 useMemo — 스토어에 두지 않음.
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const lanes = useMemo(() => computeLanes(dayBlocks, draggingId), [dayBlocks, draggingId]);
+
+  // 빈 날 힌트(§6.5) — 생성 드래프트(훅 프리뷰 또는 이 날짜의 create 에디터) 활성 중엔 숨김.
+  // 불리언 셀렉터 — 에디터 내용 변경으로 타임라인이 리렌더되지 않는다(§3.3).
+  const createDraftActive = useUiStore(
+    (s) => s.editor.mode === 'create' && s.editor.draft.dateKey === s.activeDateKey,
+  );
+  const showEmptyHint = dayBlocks.length === 0 && draft === null && !createDraftActive;
 
   // 이동 센서(§4.3) — data-no-dnd 인식 서브클래스(lib/dndSensors):
   // 마우스 4px 미만 = 클릭, 터치 300ms 홀드 전 8px 초과 스와이프 = 스크롤(§4.5 매트릭스)
@@ -97,7 +115,9 @@ export default function Timeline({ ref }: { ref?: Ref<TimelineHandle> }) {
 
   // 터치 300ms 롱프레스 = 선택 겸용(§4.4) — 이동 없이 떼도 선택 유지 → 핸들 노출(§4.10-9).
   // 마우스는 hover가 핸들을 노출하므로 선택하지 않는다. getState 경유 — 구독·리렌더 없음.
+  // draggingId는 lane 계산의 excludeId(§4.6) — 시작 시 세팅, 드롭·취소 시 해제.
   const handleDragStart = useCallback((e: DragStartEvent) => {
+    setDraggingId(String(e.active.id));
     if (e.activatorEvent.type === 'touchstart') {
       useUiStore.getState().select(String(e.active.id));
     }
@@ -107,6 +127,7 @@ export default function Timeline({ ref }: { ref?: Ref<TimelineHandle> }) {
   // e.delta는 모디파이어+스크롤 보정이 적용된 값 — snapMin이 오토스크롤 잔여 오프셋을 재스냅.
   // 스토어 쓰기는 제스처당 이 1회(§3.2), moveBlock이 5분 불변식·길이 보존을 재강제(§3.1).
   const handleDragEnd = useCallback((e: DragEndEvent) => {
+    setDraggingId(null); // 드롭 시 lane 1회 재계산(§4.6)
     const { blocks: all, moveBlock } = useBlocksStore.getState();
     const block = all[String(e.active.id)];
     if (!block) return;
@@ -118,6 +139,8 @@ export default function Timeline({ ref }: { ref?: Ref<TimelineHandle> }) {
     );
     moveBlock(block.id, newStart);
   }, []);
+
+  const handleDragCancel = useCallback(() => setDraggingId(null), []);
 
   const scrollToNow = useCallback((behavior: ScrollBehavior) => {
     const el = scrollerRef.current;
@@ -153,15 +176,35 @@ export default function Timeline({ ref }: { ref?: Ref<TimelineHandle> }) {
         style={{ height: DAY_HEIGHT }}
       >
         <TimelineGrid />
+        {/* 빈 날 상태(§6.5) — 09:00–11:00 밴드 절대 배치, 은은한 힌트. 상호작용 불가침. */}
+        {showEmptyHint && (
+          <div
+            className="pointer-events-none absolute right-2 flex items-center justify-center text-base text-text-tertiary"
+            style={{
+              top: minutesToY(EMPTY_HINT_START_MIN),
+              height: minutesToY(EMPTY_HINT_END_MIN) - minutesToY(EMPTY_HINT_START_MIN),
+              left: RULER_WIDTH,
+            }}
+          >
+            {STRINGS.timeline.emptyDay}
+          </div>
+        )}
         <DndContext
           sensors={sensors}
           modifiers={MOVE_MODIFIERS}
           autoScroll={MOVE_AUTOSCROLL}
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
+          onDragCancel={handleDragCancel}
         >
-          {dayBlockIds.map((id) => (
-            <TimeBlockCard key={id} id={id} scrollerRef={scrollerRef} />
+          {dayBlocks.map((b) => (
+            <TimeBlockCard
+              key={b.id}
+              id={b.id}
+              lane={lanes[b.id]?.lane ?? 0}
+              laneCount={lanes[b.id]?.laneCount ?? 1}
+              scrollerRef={scrollerRef}
+            />
           ))}
         </DndContext>
         <DragCreateGhost draft={draft} />
