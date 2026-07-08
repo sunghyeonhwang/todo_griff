@@ -11,6 +11,8 @@ export const STRINGS = {
     nextDay: '다음 날짜',
     today: '오늘',
     addBlock: '새 일정 추가',
+    themeToDark: '다크 모드로 전환',   // 현재 라이트 → 탭하면 다크
+    themeToLight: '라이트 모드로 전환', // 현재 다크 → 탭하면 라이트
   },
 
   editor: {

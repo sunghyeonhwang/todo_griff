@@ -1,11 +1,12 @@
 import { useShallow } from 'zustand/react/shallow';
+import ThemeToggle from './ThemeToggle';
 import { STRINGS } from '../lib/strings';
 import { dayOfMonth, formatHeaderDate, isTodayKey, weekDateKeys } from '../lib/time';
 import { useUiStore } from '../store/uiStore';
 
 // 날짜 내비게이션 헤더 — DESIGN.md §6.5 (Structured 비주얼 정체성)
 // - 스크롤러 밖 shrink-0 형제(App에서 Timeline 위) — sticky + backdrop-blur의 iOS 지터 회피.
-// - 1행: ‹ › 화살표(goRelative ±1) · ko 날짜 라벨("7월 8일 수요일") · "오늘".
+// - 1행: ‹ › 화살표(goRelative ±1) · ko 날짜 라벨("7월 8일 수요일") · "오늘" · 테마 토글(§6.3).
 // - 2행: 주간 스트립(월요일 시작 7칸) — Structured의 상징 요소. 요일 글자 + 날짜 원,
 //   선택일 = accent 채움 + 흰 글자, 오늘(비선택) = accent 글자. 탭 = goToDate.
 //   스트립은 activeDateKey가 속한 주를 파생 렌더 — ‹ ›로 주 경계를 넘으면 자동 리센터.
@@ -65,6 +66,7 @@ export default function DateHeader({ onToday }: DateHeaderProps) {
         >
           {STRINGS.header.today}
         </button>
+        <ThemeToggle />
       </div>
       {/* 주간 스트립 — 7칸 균등, 요일 글자 + 날짜 원 */}
       <div className="flex px-2 pt-1 pb-2">

@@ -221,7 +221,7 @@ formatMinutes(m)  // 순수 산술 'HH:mm', m=1440 → '24:00'
 - 카드: `rounded-md`(토큰 12px), 배경 `var(--blk-bg)`, 그림자 `var(--shadow-block)`, 좌우 인셋: 거터(60px) 오른쪽 ~ 우측 8px. (액센트 바·배지 링 없음 — 색 정체성은 카드 틴트)
 - 내용: **아이콘 `<img>` 직접 렌더**(28px/콤팩트 20px — surface-card 원형 배지·링 없음, 흰/검 테두리 제거 2026-07-08) + 제목·캡션 스택 + 우측 체크박스. 색 정체성은 카드 틴트(`--blk-bg`)로 유지.
 - 제목: 한 줄 말줄임(`--fs-sm` 13px, `--fw-semibold`, `var(--blk-fg)`).
-- 시간 캡션 "HH:mm – HH:mm · 소요시간"(예: "12:45 – 14:30 · 1시간 45분", `--fs-xs`, 70% 불투명도)은 **블록 높이 ≥ 40px(25분 이상)일 때만** — 15분 블록(24px)은 배지+제목 한 줄만.
+- 캡션 "(프로젝트 ·) HH:mm – HH:mm · 소요시간"(예: "리브랜딩 · 12:45 – 14:30 · 1시간 45분", `--fs-xs`, 70% 불투명도, `project` 있으면 앞에 medium 굵기로 노출 후 truncate)은 **블록 높이 ≥ 40px(25분 이상)일 때만** — 15분 블록(24px)은 아이콘+제목 한 줄만.
 - 접근성: 카드는 포커스 가능한 버튼(Enter/Space → 에디터), 체크박스에 `aria-label`. 키보드 사용자의 시간 조정 경로는 에디터의 네이티브 time input(dnd-kit KeyboardSensor는 의도적 미사용 — 문서화된 결정).
 
 ### 4.9 탭/체크박스/완료 상태
@@ -253,7 +253,7 @@ formatMinutes(m)  // 순수 산술 'HH:mm', m=1440 → '24:00'
 - **FAB "+" 드래프트 정의**: `start = min(다음 정시, 1380 /* 23:00 */)`, `end = min(start+60, 1440)` → create 모드.
 - **레이아웃(Structured 아나토미 — 사용자 제공 스크린샷 기준)**:
   1. **컬러 헤더 밴드**(`var(--blk-solid)` 풀블리드): 좌상단 X 닫기 원 · 대형 아이콘 배지(80px 반투명 원 `rgba(255,255,255,.25)`, 안에 아이콘 `<img>` 64px, 탭 = 피커 카드 토글 — surface-card 링 없음, 흰/검 테두리 제거 2026-07-08) · 시간 요약 "10:00 ~ 10:15 (15분)"(라이브 갱신) · **밑줄 제목 input**(투명 bg, `text-on-solid`, `--fs-lg`; create 모드만 autoFocus — iOS는 열기 제스처 핸들러에서 동기 설정해야 키보드 뜸) · (edit) 우측 완료 원(폼 로컬 토글, 저장 시 반영). **빈 제목 저장 시 '새 일정' 자동 대체 — 제목 때문에 저장이 비활성화되는 일 없음**
-  2. **본문**(`surface-background` 위 흰 카드 섹션 순서): **날짜 행 카드**(📅 "2026년 7월 8일 (수)" + 오늘 라벨, 표시 전용) → (피커 카드: 4×2 아이콘 그리드 + 색상 스와치 8개 — **외부 아이콘 팩 금지**(이모지 라이브러리 금지 원칙 계승 — 번들·PWA 프리캐시 비대화 방지), 큐레이션 SVG 8개(`src/icons/*.svg`, id): star 중요 · calendar 일정 · dialog 대화 · notification 알림 · paperplane 발송 · camera 사진 · design 디자인 · compass 탐색. 각 셀 44px 터치 타깃, 아이콘 `<img>` 28px) → **"시간" 섹션**(네이티브 `<input type="time" step={300}>` × 2 — iOS 휠 step 무시는 저장 시 5분 스냅 흡수, `end ≤ start`면 저장 비활성 + 인라인 힌트) → **"소요시간" pill 선택기**(15분/30분/45분/1시간/1시간 30분/2시간, 탭 = `endMin = min(start+d, 1440)`, 현재 길이와 일치하는 pill 자동 활성) → **알림 카드**(토글 + 오프셋 select — 최초 켜기의 사용자 제스처 안에서만 권한 요청, "알림은 앱이 열려 있는 동안에만 동작합니다" + iOS Safari 비-standalone 설치 힌트) → **프로젝트 입력칸**(단일 라인 `<input>`, 로컬 태그 선택·기본 '', Que 연동 블록은 projectLabel 프리필 §14.4) → 메모 카드(3줄) → 삭제(edit 모드만 — **탭-어게인 확인**(첫 탭 → 3초간 "한 번 더 탭하면 삭제"), `window.confirm` 금지)
+  2. **본문**(`surface-background` 위 흰 카드 섹션 순서): **날짜 행 카드**(📅 "2026년 7월 8일 (수)" + 오늘 라벨, 표시 전용) → (피커 카드: 4×2 아이콘 그리드 + 색상 스와치 8개 — **외부 아이콘 팩 금지**(이모지 라이브러리 금지 원칙 계승 — 번들·PWA 프리캐시 비대화 방지), 큐레이션 SVG 8개(`src/icons/*.svg`, id): star 중요 · calendar 일정 · dialog 대화 · notification 알림 · paperplane 발송 · camera 사진 · design 디자인 · compass 탐색. 각 셀 44px 터치 타깃, 아이콘 `<img>` 28px) → **"시간" 섹션**(네이티브 `<input type="time" step={300}>` × 2 — iOS 휠 step 무시는 저장 시 5분 스냅 흡수, `end ≤ start`면 저장 비활성 + 인라인 힌트) → **"소요시간" pill 선택기**(15분/30분/45분/1시간/1시간 30분/2시간, 탭 = `endMin = min(start+d, 1440)`, 현재 길이와 일치하는 pill 자동 활성) → **알림 카드**(토글 + 오프셋 select — 최초 켜기의 사용자 제스처 안에서만 권한 요청, "알림은 앱이 열려 있는 동안에만 동작합니다" + iOS Safari 비-standalone 설치 힌트) → **프로젝트 입력칸**(단일 라인 `<input>` + **Que 프로젝트 자동완성 `datalist`**(연동 블록의 project·인박스 projectLabel에서 유도, 후보 있을 때만) + 자유 입력, 로컬 태그·기본 '', 연동 블록은 projectLabel 프리필·풀 시 갱신 §14.4) → 메모 카드(3줄) → 삭제(edit 모드만 — **탭-어게인 확인**(첫 탭 → 3초간 "한 번 더 탭하면 삭제"), `window.confirm` 금지)
   3. **하단 대형 저장 pill**(`accent-primary` 풀폭 라운드 — Structured '계속' 위치, `end ≤ start`면 40% 비활성)
 - **저장 시맨틱: 명시적 저장.** 스토어 변이가 정확히 1회(add/update), 검증 초크포인트 1곳, 취소가 자명하게 올바름. 유일한 예외는 카드 위 체크박스(§4.9).
 
@@ -282,7 +282,7 @@ blue · green · orange · red · purple · pink · teal · gray
 - `index.html` 인라인 스크립트(3줄): `document.documentElement.dataset.theme = localStorage.theme ?? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')` + `localStorage.theme`이 없을 때만 matchMedia `change` 리스너로 라이브 반영.
 - Tailwind: `@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));` — `dark:` 유틸리티가 전부 이 속성 기준.
 - tokens.css의 media 폴백은 JS 실행 전 첫 페인트 플래시 방지용으로 그대로 두되, 스크립트가 항상 data-theme를 스탬프하므로 실질 신호는 하나.
-- v1은 시스템 따름(스크립트가 `localStorage.theme`을 쓰지 않으므로). 추후 인앱 토글 = `localStorage.theme` 쓰고 dataset 갱신하는 원라이너.
+- 기본은 시스템 따름(`localStorage.theme` 미설정 시). **인앱 테마 토글**(`ThemeToggle.tsx`, 헤더 우측 '오늘' 옆)이 `lib/theme.ts`의 `setTheme`/`toggleTheme`으로 `localStorage.theme` 저장 + `data-theme` 즉시 갱신(리로드 없음). localStorage.theme이 세팅되면 위 스크립트 로직상 OS 추종은 해제(수동 선택 우선). 라이트일 땐 달·다크일 땐 해 아이콘.
 
 ### 6.4 타이포·모션·z-index (토큰 채택)
 
@@ -293,7 +293,7 @@ blue · green · orange · red · purple · pink · teal · gray
 ### 6.5 앱 셸 & 레이아웃
 
 - 페이지 배경 `var(--surface-background)`, 컬럼·카드 `var(--surface-card)`. 루트 `h-dvh`(100vh·h-screen 금지 — iOS 툴바 문제), `max-w-app mx-auto` 컬럼. 데스크톱: "폰 프레임"(측면 헤어라인 + `--shadow-lg`), 모바일: 엣지-투-엣지.
-- 헤더는 스크롤러 **밖의** `shrink-0` 형제(sticky + backdrop-blur의 iOS 모멘텀 지터 회피), `pt-[env(safe-area-inset-top)]`, `z-header(40)`. **2행 구성(Structured 정체성)**: 1행 = ‹ › 화살표 + ko 날짜 라벨 + "오늘" / 2행 = **주간 스트립**(월요일 시작 7칸: 요일 글자 + 날짜 원, 선택일 = accent 채움 + 흰 글자, 오늘(비선택) = accent 글자, 탭 = goToDate — activeDateKey가 속한 주를 파생 렌더라 주 경계 이동 시 자동 리센터).
+- 헤더는 스크롤러 **밖의** `shrink-0` 형제(sticky + backdrop-blur의 iOS 모멘텀 지터 회피), `pt-[env(safe-area-inset-top)]`, `z-header(40)`. **2행 구성(Structured 정체성)**: 1행 = ‹ › 화살표 + ko 날짜 라벨 + "오늘" + 테마 토글(§6.3) / 2행 = **주간 스트립**(월요일 시작 7칸: 요일 글자 + 날짜 원, 선택일 = accent 채움 + 흰 글자, 오늘(비선택) = accent 글자, 탭 = goToDate — activeDateKey가 속한 주를 파생 렌더라 주 경계 이동 시 자동 리센터).
 - **플로팅 + 버튼(AddFab)**: 컬럼(relative) 우하단 고정 56px 원형, `accent-primary` 채움 + 흰 +, safe-area 보정, `z-header(40)`(시트 백드롭 50이 덮음). 일정 추가 진입점 — 헤더에는 + 없음.
 - 스크롤러: `flex-1 min-h-0 overflow-y-auto overscroll-contain`.
 - `viewport-fit=cover` + 바텀시트 `pb-[calc(env(safe-area-inset-bottom)+8px)]` — 없으면 PWA 스탠드얼론에서 노치 아래 깔림.
@@ -345,7 +345,8 @@ src/
 ├── icons/                    # 큐레이션 블록 아이콘 SVG 8개 (Vite 에셋 — lib/icons.ts가 임포트)
 ├── brand/                    # 로그인 브랜드 에셋 (griff-logo.svg·google.svg — Figma 45:199)
 ├── components/
-│   ├── DateHeader.tsx        # ‹ › 화살표, 날짜 라벨(ko), "오늘" + 주간 스트립(§6.5)
+│   ├── DateHeader.tsx        # ‹ › 화살표, 날짜 라벨(ko), "오늘" + 주간 스트립 + 테마 토글(§6.5)
+│   ├── ThemeToggle.tsx       # 라이트↔다크 수동 토글 버튼(헤더 우측, §6.3)
 │   ├── AddFab.tsx            # 플로팅 + 버튼(§6.5) — 다음 정시 드래프트로 openCreate
 │   ├── Timeline.tsx          # 스크롤 컨테이너 소유 + DndContext + 캔버스 조립 + 스크롤-투-나우
 │   ├── TimelineGrid.tsx      # 정적 시간 눈금/라벨 25개 (React.memo, 1회 렌더)
@@ -372,6 +373,7 @@ src/
     ├── lanes.ts              # 겹침 클러스터 + lane 배정 + excludeId (순수, 테스트 가능)
     ├── icons.ts              # CURATED_ICONS 8개(id·라벨·src, src/icons/*.svg 임포트) + resolveIcon/isIconId
     ├── strings.ts            # 한국어 UI 카피 전체 (하드코딩 분산 금지)
+    ├── theme.ts              # getTheme/setTheme/toggleTheme (data-theme + localStorage.theme, §6.3)
     ├── alarms.ts             # 30초 폴링 스케줄러 + 권한 요청 + SW showNotification 경로
     ├── safeStorage.ts        # 파싱 실패 백업·쿼터 처리 PersistStorage (§13 어댑터 교체 지점)
     └── dndSensors.ts         # data-no-dnd 인식 Mouse/Touch 센서
@@ -539,7 +541,7 @@ export interface TimeBlock {
 | `status`=`done` | `completed` | `done → true`, 그 외 → `false`. (역방향은 §14.6) |
 | `status`(전체) | `color`(선택·표시) | 옵션 시각 매핑: `issue→red · on_hold→amber · done→green · 그 외→blue`. 로컬 색 편집이 우선이면 덮지 않음. |
 | `description` | `note` | 최초 프리필만(옵션). 이후 로컬 편집은 Que로 안 감. |
-| `projectLabel`(파생) / `projectId` | `project`(프리필) | 인박스 부제로 노출 + 연동 블록 생성 시 로컬 `project` 태그로 **프리필**(이후 편집은 로컬 전용, Que로 안 감). `projectName`은 Que Task에 없음 — `projectLabel` 사용. |
+| `projectLabel`(파생) / `projectId` | `project`(프리필·풀 동기화) | 인박스 부제로 노출 + 연동 블록 생성 시 로컬 `project`로 **프리필**, 이후 **풀마다 `projectLabel`과 다르면 갱신**(연동 블록의 project는 Que 파생). 로컬 전용 블록의 project는 자유 편집. `projectName`은 Que Task에 없음 — `projectLabel` 사용. |
 | `assigneeId` | (필터 조건) | `=== user.id`인 태스크만 취함. 저장하지 않음. |
 | — | `syncState` | 풀 직후 `'synced'`. 로컬 변이 후 플러시 전 `'pending'`. |
 | — | `icon` / `color` / `alarm` | Que에 대응 없음 → 기본값(`'star'`/`blue`(또는 status 파생)/`null`). |

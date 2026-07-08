@@ -191,11 +191,14 @@ export default function TimeBlockCard({
             >
               {block.title}
             </div>
-            {/* 시간 캡션: 범위 · 소요시간 — 예: "12:45 – 14:30 · 1시간 45분" */}
+            {/* 캡션: (프로젝트 ·) 범위 · 소요시간 — 예: "리브랜딩 · 12:45 – 14:30 · 1시간 45분" */}
             {showCaption && (
-              <div className="truncate text-xs tabular-nums text-(--blk-fg) opacity-70">
-                {formatMinutes(startMin)} – {formatMinutes(endMin)} ·{' '}
-                {STRINGS.duration(endMin - startMin)}
+              <div className="truncate text-xs text-(--blk-fg) opacity-70">
+                {block.project && <span className="font-medium">{block.project} · </span>}
+                <span className="tabular-nums">
+                  {formatMinutes(startMin)} – {formatMinutes(endMin)} ·{' '}
+                  {STRINGS.duration(endMin - startMin)}
+                </span>
               </div>
             )}
           </div>

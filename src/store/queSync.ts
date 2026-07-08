@@ -14,7 +14,7 @@ import {
 } from '../lib/queApi';
 import { DAY_MINUTES, DEFAULT_DURATION, nowMinutes } from '../lib/time';
 import { useAuthStore } from './authStore';
-import { useBlocksStore } from './blocksStore';
+import { useBlocksStore, type BlockPatch } from './blocksStore';
 import { useUiStore } from './uiStore';
 import type { TimeBlock } from '../types';
 
@@ -247,16 +247,20 @@ async function pull(): Promise<void> {
       } else if (existing.syncState !== 'pending') {
         // LWW(§14.7): 미플러시 pending은 로컬 우선. 그 외엔 원격이 최신일 때만 갱신.
         const remoteMs = mapped.lastChangedAt ? Date.parse(mapped.lastChangedAt) : 0;
+        const remoteProject = mapped.input.project ?? '';
+        const patch: BlockPatch = {};
         if (Number.isFinite(remoteMs) && remoteMs > existing.updatedAt) {
-          useBlocksStore.getState().updateBlock(existing.id, {
-            dateKey: mapped.input.dateKey,
-            startMin: mapped.input.startMin,
-            endMin: mapped.input.endMin,
-            title: mapped.input.title,
-            completed: mapped.completed,
-            syncState: 'synced',
-          });
+          patch.dateKey = mapped.input.dateKey;
+          patch.startMin = mapped.input.startMin;
+          patch.endMin = mapped.input.endMin;
+          patch.title = mapped.input.title;
+          patch.completed = mapped.completed;
+          patch.syncState = 'synced';
         }
+        // 프로젝트는 연동 블록에서 Que 파생 — 다르면 항상 갱신(자동 채움, 풀 시 반영 §14.4).
+        // updateBlock이 updatedAt을 bump하나(§13.3), 시계 오차 창 1회 한정 — 기존 LWW가 이미 수용하는 급.
+        if (existing.project !== remoteProject) patch.project = remoteProject;
+        if (Object.keys(patch).length > 0) useBlocksStore.getState().updateBlock(existing.id, patch);
       }
     }
   } finally {

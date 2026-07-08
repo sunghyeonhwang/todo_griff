@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import BottomSheet from './BottomSheet';
 import ColorSwatchRow from './ColorSwatchRow';
@@ -6,6 +6,7 @@ import IconGrid from './IconGrid';
 import { requestNotificationPermission } from '../lib/alarms';
 import { DEFAULT_ICON_ID, resolveIcon } from '../lib/icons';
 import { STRINGS } from '../lib/strings';
+import { useQueSyncStore } from '../store/queSync';
 import {
   DAY_MINUTES,
   MIN_DURATION,
@@ -163,6 +164,21 @@ function EditorForm({ editor }: { editor: OpenEditor }) {
   const isEdit = editor.mode === 'edit';
   const [form, setForm] = useState<FormState>(() => initialForm(editor));
   const patch = (p: Partial<FormState>) => setForm((f) => ({ ...f, ...p }));
+
+  // Que 프로젝트 자동완성 후보 — 현재 로컬 데이터에서 유도(별도 엔드포인트 없이): 연동 블록의
+  // project + 인박스(무시간 태스크)의 projectLabel. 폼은 열 때마다 리마운트(key)라 getState로 충분.
+  const queProjects = useMemo(() => {
+    const set = new Set<string>();
+    const blocks = useBlocksStore.getState().blocks;
+    for (const id in blocks) {
+      const b = blocks[id];
+      if (b.queTaskId && b.project) set.add(b.project); // 연동 블록의 project = Que 파생
+    }
+    for (const t of useQueSyncStore.getState().inbox) {
+      if (t.projectLabel) set.add(t.projectLabel);
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'ko'));
+  }, []);
 
   const [pickerOpen, setPickerOpen] = useState(false);
   const [deleteArmed, setDeleteArmed] = useState(false);
@@ -464,15 +480,23 @@ function EditorForm({ editor }: { editor: OpenEditor }) {
           )}
         </div>
 
-        {/* 프로젝트 입력칸 — 로컬 태그(선택). Que 연동 블록은 projectLabel로 프리필됨(§14.4) */}
+        {/* 프로젝트 입력칸 — Que 프로젝트 자동완성(datalist) + 자유 입력. 연동 블록은 프리필됨(§14.4) */}
         <input
           type="text"
           value={form.project}
           onChange={(e) => patch({ project: e.target.value })}
           placeholder={STRINGS.editor.projectPlaceholder}
           aria-label={STRINGS.editor.projectSection}
+          list={queProjects.length > 0 ? 'que-project-list' : undefined}
           className="w-full rounded-lg bg-surface-card px-3.5 py-3 text-base text-text-primary shadow-sm outline-none placeholder:text-text-tertiary focus:ring-2 focus:ring-accent-primary"
         />
+        {queProjects.length > 0 && (
+          <datalist id="que-project-list">
+            {queProjects.map((p) => (
+              <option key={p} value={p} />
+            ))}
+          </datalist>
+        )}
 
         {/* 메모 카드 */}
         <textarea
