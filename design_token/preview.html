@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Structured Design Tokens — Preview</title>
+<link rel="stylesheet" href="tokens.css">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: var(--font-sans);
+    background: var(--surface-background);
+    color: var(--text-primary);
+    padding: var(--space-6);
+    transition: background var(--duration-base) var(--ease-standard);
+  }
+  .wrap { max-width: 720px; margin: 0 auto; }
+  header { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-8); }
+  h1 { font-size: var(--fs-2xl); font-weight: var(--fw-bold); letter-spacing: var(--ls-tight); }
+  h2 { font-size: var(--fs-md); font-weight: var(--fw-semibold); margin: var(--space-8) 0 var(--space-4); color: var(--text-secondary); }
+  .toggle {
+    background: var(--surface-card); border: 1px solid var(--surface-timeline-line);
+    color: var(--text-primary); padding: var(--space-2) var(--space-4);
+    border-radius: var(--radius-full); font-size: var(--fs-sm); cursor: pointer;
+    box-shadow: var(--shadow-sm);
+  }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--space-3); }
+  .swatch {
+    border-radius: var(--radius-lg); padding: var(--space-4);
+    box-shadow: var(--shadow-block); border: 1px solid; min-height: 74px;
+    display: flex; flex-direction: column; justify-content: space-between;
+  }
+  .swatch .name { font-size: var(--fs-sm); font-weight: var(--fw-semibold); }
+  .swatch .dot { width: 18px; height: 18px; border-radius: var(--radius-full); align-self: flex-end; }
+  .blocks { display: flex; flex-direction: column; gap: var(--space-2); }
+  .block {
+    display: flex; align-items: center; gap: var(--space-3);
+    padding: var(--space-3) var(--space-4); border-radius: var(--radius-md);
+    box-shadow: var(--shadow-block); border-left: 4px solid;
+  }
+  .block .emoji { font-size: var(--fs-lg); }
+  .block .info { flex: 1; }
+  .block .title { font-size: var(--fs-base); font-weight: var(--fw-semibold); }
+  .block .time { font-size: var(--fs-xs); color: var(--text-tertiary); }
+  .type-row { display: flex; align-items: baseline; gap: var(--space-4); padding: var(--space-2) 0; border-bottom: 1px solid var(--surface-timeline-line); }
+  .type-label { font-size: var(--fs-xs); color: var(--text-tertiary); width: 60px; font-family: var(--font-mono); }
+  .shadow-demo { display: flex; gap: var(--space-6); flex-wrap: wrap; padding: var(--space-4) 0; }
+  .shadow-box { width: 90px; height: 90px; background: var(--surface-card); border-radius: var(--radius-lg); display: flex; align-items: center; justify-content: center; font-size: var(--fs-xs); color: var(--text-tertiary); }
+  .radius-demo { display: flex; gap: var(--space-4); align-items: flex-end; flex-wrap: wrap; }
+  .radius-box { width: 64px; height: 64px; background: var(--accent-primary); display: flex; align-items: center; justify-content: center; color: #fff; font-size: var(--fs-xs); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Structured Tokens</h1>
+    <button class="toggle" onclick="toggleTheme()">🌗 테마 전환</button>
+  </header>
+
+  <h2>Block Colors</h2>
+  <div class="grid" id="blockGrid"></div>
+
+  <h2>Sample Time Blocks</h2>
+  <div class="blocks" id="sampleBlocks"></div>
+
+  <h2>Typography</h2>
+  <div id="typeScale"></div>
+
+  <h2>Shadows</h2>
+  <div class="shadow-demo">
+    <div class="shadow-box" style="box-shadow:var(--shadow-sm)">sm</div>
+    <div class="shadow-box" style="box-shadow:var(--shadow-md)">md</div>
+    <div class="shadow-box" style="box-shadow:var(--shadow-lg)">lg</div>
+  </div>
+
+  <h2>Radius</h2>
+  <div class="radius-demo">
+    <div class="radius-box" style="border-radius:var(--radius-sm)">8</div>
+    <div class="radius-box" style="border-radius:var(--radius-md)">12</div>
+    <div class="radius-box" style="border-radius:var(--radius-lg)">16</div>
+    <div class="radius-box" style="border-radius:var(--radius-xl)">20</div>
+    <div class="radius-box" style="border-radius:var(--radius-2xl)">28</div>
+  </div>
+</div>
+
+<script>
+const COLORS = ['blue','green','orange','red','purple','pink','teal','gray'];
+const SAMPLES = [
+  {c:'blue',   e:'💼', t:'딥워크',      time:'09:00 – 11:00'},
+  {c:'green',  e:'🥗', t:'점심 & 산책',  time:'12:00 – 13:00'},
+  {c:'orange', e:'📞', t:'클라이언트 콜', time:'14:00 – 14:30'},
+  {c:'purple', e:'🎨', t:'디자인 리뷰',  time:'15:00 – 16:30'},
+  {c:'teal',   e:'🏃', t:'운동',         time:'18:00 – 19:00'},
+];
+
+const grid = document.getElementById('blockGrid');
+COLORS.forEach(c => {
+  const el = document.createElement('div');
+  el.className = 'swatch';
+  el.style.background = `var(--block-${c}-bg)`;
+  el.style.borderColor = `var(--block-${c}-border)`;
+  el.innerHTML = `<span class="name" style="color:var(--block-${c}-fg)">${c}</span>
+    <span class="dot" style="background:var(--block-${c}-solid)"></span>`;
+  grid.appendChild(el);
+});
+
+const sb = document.getElementById('sampleBlocks');
+SAMPLES.forEach(s => {
+  const el = document.createElement('div');
+  el.className = 'block';
+  el.style.background = `var(--block-${s.c}-bg)`;
+  el.style.borderLeftColor = `var(--block-${s.c}-solid)`;
+  el.innerHTML = `<span class="emoji">${s.e}</span>
+    <div class="info"><div class="title" style="color:var(--block-${s.c}-fg)">${s.t}</div>
+    <div class="time">${s.time}</div></div>`;
+  sb.appendChild(el);
+});
+
+const scale = [['xs','11'],['sm','13'],['base','15'],['md','17'],['lg','20'],['xl','24'],['2xl','28'],['3xl','34']];
+const ts = document.getElementById('typeScale');
+scale.forEach(([k,px]) => {
+  const row = document.createElement('div');
+  row.className = 'type-row';
+  row.innerHTML = `<span class="type-label">${k} · ${px}px</span>
+    <span style="font-size:var(--fs-${k}); font-weight:var(--fw-semibold)">오늘 할 일 Today</span>`;
+  ts.appendChild(row);
+});
+
+function toggleTheme() {
+  const cur = document.documentElement.getAttribute('data-theme');
+  document.documentElement.setAttribute('data-theme', cur === 'dark' ? 'light' : 'dark');
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+# dependencies / build
+node_modules/
+dist/
+dev-dist/
+
+# local env & tooling
+*.local
+.vercel/
+.env
+.env.*
+
+# OS
+.DS_Store

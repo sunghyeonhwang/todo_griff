@@ -1,0 +1,135 @@
+/* ============================================================
+   Structured Planner — Design Tokens (CSS Custom Properties)
+   v1.0.0
+   Light 테마가 기본값. [data-theme="dark"] 또는
+   @media (prefers-color-scheme: dark)로 다크 전환.
+   ============================================================ */
+
+:root {
+  /* ---------- Block Colors (bg / fg / solid / border) ---------- */
+  --block-blue-bg: #E8F0FE;   --block-blue-fg: #1A73E8;   --block-blue-solid: #4285F4;   --block-blue-border: #C6DAFC;
+  --block-green-bg: #E6F4EA;  --block-green-fg: #1E8E3E;  --block-green-solid: #34A853;  --block-green-border: #C4E7CE;
+  --block-orange-bg: #FEF0E3; --block-orange-fg: #E8710A; --block-orange-solid: #FA903E; --block-orange-border: #FBDDC3;
+  --block-red-bg: #FCE8E6;    --block-red-fg: #D93025;    --block-red-solid: #EA4335;    --block-red-border: #F7C6C2;
+  --block-purple-bg: #F3E8FD; --block-purple-fg: #8430CE; --block-purple-solid: #A250E8; --block-purple-border: #E3CBF9;
+  --block-pink-bg: #FCE4EC;   --block-pink-fg: #D01884;   --block-pink-solid: #EC4899;   --block-pink-border: #F8C6DD;
+  --block-teal-bg: #E0F7F5;   --block-teal-fg: #00897B;   --block-teal-solid: #14B8A6;   --block-teal-border: #B8ECE6;
+  --block-gray-bg: #F1F3F4;   --block-gray-fg: #5F6368;   --block-gray-solid: #9AA0A6;   --block-gray-border: #DADCE0;
+
+  /* ---------- Surface ---------- */
+  --surface-background:    #F7F8FA;
+  --surface-card:          #FFFFFF;
+  --surface-card-elevated: #FFFFFF;
+  --surface-timeline-line: #EAECEF;
+  --surface-timeline-label:#9AA0A6;
+  --surface-now-indicator: #EA4335;
+  --surface-overlay:       rgba(0,0,0,0.4);
+
+  /* ---------- Text ---------- */
+  --text-primary:   #1F2226;
+  --text-secondary: #5F6368;
+  --text-tertiary:  #9AA0A6;
+  --text-on-solid:  #FFFFFF;
+
+  /* ---------- Accent ---------- */
+  --accent-primary: #4285F4;
+  --accent-success: #34A853;
+  --accent-warning: #FA903E;
+  --accent-danger:  #EA4335;
+
+  /* ---------- Typography ---------- */
+  --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Pretendard', 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'SF Mono', 'Roboto Mono', 'JetBrains Mono', monospace;
+
+  --fs-xs: 11px;  --fs-sm: 13px;  --fs-base: 15px; --fs-md: 17px;
+  --fs-lg: 20px;  --fs-xl: 24px;  --fs-2xl: 28px;  --fs-3xl: 34px;
+
+  --fw-regular: 400; --fw-medium: 500; --fw-semibold: 600; --fw-bold: 700;
+
+  --lh-tight: 1.2; --lh-normal: 1.4; --lh-relaxed: 1.6;
+  --ls-tight: -0.02em; --ls-normal: 0; --ls-wide: 0.02em;
+
+  /* ---------- Spacing ---------- */
+  --space-0: 0px;   --space-1: 4px;  --space-2: 8px;  --space-3: 12px;
+  --space-4: 16px;  --space-5: 20px; --space-6: 24px; --space-8: 32px;
+  --space-10: 40px; --space-12: 48px; --space-16: 64px;
+
+  /* ---------- Radius ---------- */
+  --radius-none: 0px; --radius-sm: 8px;  --radius-md: 12px; --radius-lg: 16px;
+  --radius-xl: 20px;  --radius-2xl: 28px; --radius-full: 9999px;
+
+  /* ---------- Shadow ---------- */
+  --shadow-sm:    0 1px 2px rgba(15,17,20,0.06);
+  --shadow-md:    0 2px 8px rgba(15,17,20,0.08);
+  --shadow-lg:    0 8px 24px rgba(15,17,20,0.12);
+  --shadow-block: 0 1px 3px rgba(15,17,20,0.10);
+
+  /* ---------- Layout ---------- */
+  --app-max-width:      480px;
+  --hour-height:        64px;
+  --px-per-minute:      1.0667; /* hour-height / 60 */
+  --time-label-width:   60px;
+  --snap-minutes:       15;
+  --block-min-height:   24px;
+  --now-indicator-width:2px;
+
+  /* ---------- Motion ---------- */
+  --duration-fast: 120ms; --duration-base: 200ms; --duration-slow: 320ms;
+  --ease-standard:   cubic-bezier(0.4, 0.0, 0.2, 1);
+  --ease-decelerate: cubic-bezier(0.0, 0.0, 0.2, 1);
+  --ease-accelerate: cubic-bezier(0.4, 0.0, 1, 1);
+  --ease-spring:     cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* ---------- z-index ---------- */
+  --z-base: 0; --z-block: 10; --z-now: 20; --z-dragging: 30;
+  --z-header: 40; --z-modal: 50; --z-toast: 60;
+}
+
+/* ============================================================
+   Dark theme — attribute 방식
+   ============================================================ */
+[data-theme="dark"] {
+  --surface-background:    #0F1114;
+  --surface-card:          #1C1F24;
+  --surface-card-elevated: #262A30;
+  --surface-timeline-line: #2A2E34;
+  --surface-timeline-label:#7A8085;
+  --surface-now-indicator: #FF6B5E;
+  --surface-overlay:       rgba(0,0,0,0.6);
+
+  --text-primary:   #F1F3F4;
+  --text-secondary: #B4B9BF;
+  --text-tertiary:  #7A8085;
+  --text-on-solid:  #FFFFFF;
+
+  --shadow-sm:    0 1px 2px rgba(0,0,0,0.30);
+  --shadow-md:    0 2px 8px rgba(0,0,0,0.40);
+  --shadow-lg:    0 8px 24px rgba(0,0,0,0.50);
+  --shadow-block: 0 1px 3px rgba(0,0,0,0.35);
+}
+
+/* ============================================================
+   Dark theme — 시스템 설정 자동 대응
+   (data-theme가 명시되지 않은 경우에만)
+   ============================================================ */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --surface-background:    #0F1114;
+    --surface-card:          #1C1F24;
+    --surface-card-elevated: #262A30;
+    --surface-timeline-line: #2A2E34;
+    --surface-timeline-label:#7A8085;
+    --surface-now-indicator: #FF6B5E;
+    --surface-overlay:       rgba(0,0,0,0.6);
+
+    --text-primary:   #F1F3F4;
+    --text-secondary: #B4B9BF;
+    --text-tertiary:  #7A8085;
+    --text-on-solid:  #FFFFFF;
+
+    --shadow-sm:    0 1px 2px rgba(0,0,0,0.30);
+    --shadow-md:    0 2px 8px rgba(0,0,0,0.40);
+    --shadow-lg:    0 8px 24px rgba(0,0,0,0.50);
+    --shadow-block: 0 1px 3px rgba(0,0,0,0.35);
+  }
+}
