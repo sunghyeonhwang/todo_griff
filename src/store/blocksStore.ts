@@ -27,6 +27,7 @@ export interface NewBlockInput {
   color?: BlockColor;
   alarm?: AlarmOffset | null;
   note?: string;
+  project?: string;
   // Que 연동(§14.3) — 기존 액션의 가법적 확장. 8개 변이 초크포인트 유지(§3.1).
   queTaskId?: string;
   syncState?: QueSyncState;
@@ -105,6 +106,7 @@ function sanitizeBlock(fallbackId: string, v: unknown): TimeBlock | null {
     color: isBlockColor(b.color) ? b.color : DEFAULT_COLOR, // 알 수 없는 color → 'blue'(§3.1)
     alarm: isAlarmOffset(b.alarm) ? b.alarm : null,
     note: typeof b.note === 'string' ? b.note : '',
+    project: typeof b.project === 'string' ? b.project : '', // 미지/구 블록 → '' (가법적, 버전업 불요)
     completed: b.completed === true,
     createdAt: typeof b.createdAt === 'number' && Number.isFinite(b.createdAt) ? b.createdAt : now,
     updatedAt: typeof b.updatedAt === 'number' && Number.isFinite(b.updatedAt) ? b.updatedAt : now,
@@ -155,6 +157,7 @@ export const useBlocksStore = create<BlocksState & BlocksActions>()(
           color: input.color ?? DEFAULT_COLOR,
           alarm: input.alarm ?? null,
           note: input.note ?? '',
+          project: input.project ?? '',
           completed: false,
           createdAt: now,
           updatedAt: now,

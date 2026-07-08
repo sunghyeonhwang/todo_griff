@@ -96,6 +96,10 @@ export default function BottomSheet({ open, onClose, label, children }: BottomSh
   }, [open, mounted]);
 
   // visualViewport 키보드 대응(§5) — bottom = innerHeight - vv.height - vv.offsetTop
+  // 추가로, 키보드가 뷰포트를 줄이면(gap>0) 시트 max-height를 가시 영역(vv.height)으로 제한한다.
+  // dvh는 온스크린 키보드를 추적하지 않아, 하단 고정 + 85dvh 높이인 시트가 키보드에 밀려 올라가면
+  // 상단(제목 입력)이 화면 위로 잘려 안 보이던 iOS 문제를 막는다 — 시트 전체가 키보드 위 가시
+  // 영역에 들어와 제목이 항상 보인다. 키보드가 없으면 클래스(max-h-85dvh)로 복귀한다.
   useEffect(() => {
     if (!open || !mounted) return;
     const vv = window.visualViewport;
@@ -104,6 +108,7 @@ export default function BottomSheet({ open, onClose, label, children }: BottomSh
     const update = () => {
       const gap = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
       sheet.style.bottom = `${gap}px`;
+      sheet.style.maxHeight = gap > 0 ? `${vv.height}px` : '';
     };
     update();
     vv.addEventListener('resize', update);
@@ -112,6 +117,7 @@ export default function BottomSheet({ open, onClose, label, children }: BottomSh
       vv.removeEventListener('resize', update);
       vv.removeEventListener('scroll', update);
       sheet.style.bottom = '';
+      sheet.style.maxHeight = '';
     };
   }, [open, mounted]);
 

@@ -48,6 +48,7 @@ interface FormState {
   alarmOn: boolean;
   alarmOffset: AlarmOffset; // 꺼도 세션 동안 오프셋 유지(§2)
   note: string;
+  project: string;
   completed: boolean; // 밴드 우측 완료 원(edit 전용) — 저장 시 update에만 반영
 }
 
@@ -120,6 +121,7 @@ function initialForm(editor: OpenEditor): FormState {
         alarmOn: b.alarm !== null,
         alarmOffset: b.alarm ?? DEFAULT_ALARM_OFFSET,
         note: b.note,
+        project: b.project,
         completed: b.completed,
       };
     }
@@ -136,6 +138,7 @@ function initialForm(editor: OpenEditor): FormState {
     alarmOn: false,
     alarmOffset: DEFAULT_ALARM_OFFSET,
     note: '',
+    project: '',
     completed: false,
   };
 }
@@ -187,6 +190,7 @@ function EditorForm({ editor }: { editor: OpenEditor }) {
       endMin: form.endMin,
       alarm: form.alarmOn ? form.alarmOffset : null,
       note: form.note,
+      project: form.project,
     };
     if (editor.mode === 'create') addBlock({ dateKey: editor.draft.dateKey, ...fields });
     else updateBlock(editor.blockId, { ...fields, completed: form.completed });
@@ -263,7 +267,7 @@ function EditorForm({ editor }: { editor: OpenEditor }) {
             aria-label={STRINGS.editor.iconButtonLabel}
             aria-expanded={pickerOpen}
             onClick={() => setPickerOpen((v) => !v)}
-            className="flex size-20 shrink-0 items-center justify-center rounded-full bg-[rgba(255,255,255,0.25)] ring-4 ring-surface-card active:scale-95"
+            className="flex size-20 shrink-0 items-center justify-center rounded-full bg-[rgba(255,255,255,0.25)] active:scale-95"
           >
             <img src={resolveIcon(form.icon).src} alt="" className="size-16" />
           </button>
@@ -459,6 +463,16 @@ function EditorForm({ editor }: { editor: OpenEditor }) {
             </div>
           )}
         </div>
+
+        {/* 프로젝트 입력칸 — 로컬 태그(선택). Que 연동 블록은 projectLabel로 프리필됨(§14.4) */}
+        <input
+          type="text"
+          value={form.project}
+          onChange={(e) => patch({ project: e.target.value })}
+          placeholder={STRINGS.editor.projectPlaceholder}
+          aria-label={STRINGS.editor.projectSection}
+          className="w-full rounded-lg bg-surface-card px-3.5 py-3 text-base text-text-primary shadow-sm outline-none placeholder:text-text-tertiary focus:ring-2 focus:ring-accent-primary"
+        />
 
         {/* 메모 카드 */}
         <textarea

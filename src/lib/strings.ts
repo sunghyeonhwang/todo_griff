@@ -41,6 +41,8 @@ export const STRINGS = {
     installHint:
       "홈 화면에 추가하면 알림을 받을 수 있어요 — Safari 공유 → '홈 화면에 추가' (탭과 설치된 앱의 데이터는 분리 저장돼요)",
     dismissHint: '힌트 닫기',
+    projectSection: '프로젝트',
+    projectPlaceholder: '프로젝트 이름 (선택)',
     notePlaceholder: '메모',
     delete: '삭제',
     deleteConfirm: '한 번 더 탭하면 삭제',

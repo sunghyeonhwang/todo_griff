@@ -173,18 +173,16 @@ export default function TimeBlockCard({
             showCaption ? 'items-start pt-1.5 pl-2' : 'h-6 items-center pl-1'
           }`}
         >
-          <span
+          {/* 아이콘 직접 렌더 — surface-card 원형 배지(흰/검 테두리) 제거(사용자 요청 2026-07-08).
+              색 정체성은 카드 틴트(--blk-bg)로 유지(§4.8). */}
+          <img
             aria-hidden
-            className={`flex shrink-0 items-center justify-center rounded-full bg-surface-card shadow-sm ring-2 ring-(--blk-solid) transition-opacity duration-(--duration-fast) ${
+            src={resolveIcon(block.icon).src}
+            alt=""
+            className={`shrink-0 transition-opacity duration-(--duration-fast) ${
               showCaption ? 'size-7' : 'size-5'
             } ${done ? 'opacity-50' : ''}`}
-          >
-            <img
-              src={resolveIcon(block.icon).src}
-              alt=""
-              className={showCaption ? 'size-6' : 'size-4'}
-            />
-          </span>
+          />
           <div className="min-w-0 flex-1">
             <div
               className={`truncate text-sm font-semibold transition-colors duration-(--duration-fast) ${

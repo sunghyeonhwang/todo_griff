@@ -21,6 +21,7 @@ export interface TimeBlock {
   color: BlockColor;       // 기본 'blue'
   alarm: AlarmOffset | null; // null = 알림 없음 (끄면 오프셋은 에디터 로컬에만 세션 유지)
   note: string;
+  project: string;         // 로컬 프로젝트 태그(선택, 기본 ''). Que 연동 블록은 projectLabel로 프리필(§14.4)
   completed: boolean;
   createdAt: number;       // epoch ms (감사용 절대 시각)
   updatedAt: number;       // 커밋된 변경마다 갱신 — 향후 서버 LWW 충돌 해결 기준(§13)

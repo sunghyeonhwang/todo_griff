@@ -51,6 +51,7 @@ export interface TimeBlock {
   color: BlockColor;       // 기본 'blue'
   alarm: AlarmOffset | null; // null = 알림 없음 (끄면 오프셋은 에디터 로컬에만 세션 유지)
   note: string;
+  project: string;         // 로컬 프로젝트 태그(선택, 기본 ''). Que 연동 블록은 projectLabel로 프리필(§14.4)
   completed: boolean;
   createdAt: number;       // epoch ms (감사용 절대 시각)
   updatedAt: number;       // 커밋된 변경마다 갱신 — 향후 서버 LWW 충돌 해결 기준(§13)
@@ -217,8 +218,8 @@ formatMinutes(m)  // 순수 산술 'HH:mm', m=1440 → '24:00'
 
 ### 4.8 블록 카드 아나토미 (`TimeBlockCard.tsx`) — Structured 정체성(사용자 제공 스크린샷 기준)
 
-- 카드: `rounded-md`(토큰 12px), 배경 `var(--blk-bg)`, 그림자 `var(--shadow-block)`, 좌우 인셋: 거터(60px) 오른쪽 ~ 우측 8px. (액센트 바 없음 — 색 정체성은 배지 링 + 카드 틴트)
-- 내용: **원형 아이콘 배지**(`bg-surface-card` 원 + `ring-2 var(--blk-solid)`, 28px/콤팩트 20px, 안에 아이콘 `<img>` 24px/콤팩트 16px) + 제목·캡션 스택 + 우측 체크박스.
+- 카드: `rounded-md`(토큰 12px), 배경 `var(--blk-bg)`, 그림자 `var(--shadow-block)`, 좌우 인셋: 거터(60px) 오른쪽 ~ 우측 8px. (액센트 바·배지 링 없음 — 색 정체성은 카드 틴트)
+- 내용: **아이콘 `<img>` 직접 렌더**(28px/콤팩트 20px — surface-card 원형 배지·링 없음, 흰/검 테두리 제거 2026-07-08) + 제목·캡션 스택 + 우측 체크박스. 색 정체성은 카드 틴트(`--blk-bg`)로 유지.
 - 제목: 한 줄 말줄임(`--fs-sm` 13px, `--fw-semibold`, `var(--blk-fg)`).
 - 시간 캡션 "HH:mm – HH:mm · 소요시간"(예: "12:45 – 14:30 · 1시간 45분", `--fs-xs`, 70% 불투명도)은 **블록 높이 ≥ 40px(25분 이상)일 때만** — 15분 블록(24px)은 배지+제목 한 줄만.
 - 접근성: 카드는 포커스 가능한 버튼(Enter/Space → 에디터), 체크박스에 `aria-label`. 키보드 사용자의 시간 조정 경로는 에디터의 네이티브 time input(dnd-kit KeyboardSensor는 의도적 미사용 — 문서화된 결정).
@@ -247,12 +248,12 @@ formatMinutes(m)  // 순수 산술 'HH:mm', m=1440 → '24:00'
 ## 5. 에디터 바텀시트 (`BottomSheet.tsx` + `BlockEditor.tsx`)
 
 - 시트: viewport 하단 고정, `max-w-app`(480px), 상단 라운드 `--radius-xl`(20px), 백드롭 `var(--surface-overlay)`, 슬라이드업 `--duration-slow`(320ms) `--ease-decelerate`(CSS transition, 애니메이션 라이브러리 없음), 36×5px 그래버, max-height `85dvh` 내부 스크롤. `role="dialog" aria-modal`, 포커스 트랩, Escape/백드롭 탭/그래버 80px 하향 드래그로 닫힘. `z-modal(50)`.
-- **iOS 키보드 대응**: `dvh`는 온스크린 키보드를 추적하지 않음 → 시트 열림 동안 `visualViewport` resize/scroll 리스너로 시트를 오프셋(`window.innerHeight - visualViewport.height - visualViewport.offsetTop`).
+- **iOS 키보드 대응**: `dvh`는 온스크린 키보드를 추적하지 않음 → 시트 열림 동안 `visualViewport` resize/scroll 리스너로 시트를 오프셋(`window.innerHeight - visualViewport.height - visualViewport.offsetTop`). **키보드가 뜨면(gap>0) 시트 `max-height`도 `visualViewport.height`로 제한** — 안 그러면 하단 고정 + 85dvh 시트가 키보드에 밀려 올라가 상단(제목 입력)이 화면 위로 잘려 안 보인다(2026-07-08 iOS 수정). 키보드 없으면 클래스 `max-h-[85dvh]`로 복귀.
 - 호출: `uiStore.editor` — 카드 탭 / 드래그 생성 릴리즈 / **플로팅 + 버튼(AddFab)** 3곳. App 루트에 인스턴스 1개. **타이핑 드래프트는 에디터 로컬 state** — 스토어는 "열려 있음 + 대상"만 앎(타임라인 리렌더 차단).
 - **FAB "+" 드래프트 정의**: `start = min(다음 정시, 1380 /* 23:00 */)`, `end = min(start+60, 1440)` → create 모드.
 - **레이아웃(Structured 아나토미 — 사용자 제공 스크린샷 기준)**:
-  1. **컬러 헤더 밴드**(`var(--blk-solid)` 풀블리드): 좌상단 X 닫기 원 · 대형 원형 아이콘 배지(80px, `ring-4 surface-card`, 안에 아이콘 `<img>` 64px, 탭 = 피커 카드 토글) · 시간 요약 "10:00 ~ 10:15 (15분)"(라이브 갱신) · **밑줄 제목 input**(투명 bg, `text-on-solid`, `--fs-lg`; create 모드만 autoFocus — iOS는 열기 제스처 핸들러에서 동기 설정해야 키보드 뜸) · (edit) 우측 완료 원(폼 로컬 토글, 저장 시 반영). **빈 제목 저장 시 '새 일정' 자동 대체 — 제목 때문에 저장이 비활성화되는 일 없음**
-  2. **본문**(`surface-background` 위 흰 카드 섹션 순서): **날짜 행 카드**(📅 "2026년 7월 8일 (수)" + 오늘 라벨, 표시 전용) → (피커 카드: 4×2 아이콘 그리드 + 색상 스와치 8개 — **외부 아이콘 팩 금지**(이모지 라이브러리 금지 원칙 계승 — 번들·PWA 프리캐시 비대화 방지), 큐레이션 SVG 8개(`src/icons/*.svg`, id): star 중요 · calendar 일정 · dialog 대화 · notification 알림 · paperplane 발송 · camera 사진 · design 디자인 · compass 탐색. 각 셀 44px 터치 타깃, 아이콘 `<img>` 28px) → **"시간" 섹션**(네이티브 `<input type="time" step={300}>` × 2 — iOS 휠 step 무시는 저장 시 5분 스냅 흡수, `end ≤ start`면 저장 비활성 + 인라인 힌트) → **"소요시간" pill 선택기**(15분/30분/45분/1시간/1시간 30분/2시간, 탭 = `endMin = min(start+d, 1440)`, 현재 길이와 일치하는 pill 자동 활성) → **알림 카드**(토글 + 오프셋 select — 최초 켜기의 사용자 제스처 안에서만 권한 요청, "알림은 앱이 열려 있는 동안에만 동작합니다" + iOS Safari 비-standalone 설치 힌트) → 메모 카드(3줄) → 삭제(edit 모드만 — **탭-어게인 확인**(첫 탭 → 3초간 "한 번 더 탭하면 삭제"), `window.confirm` 금지)
+  1. **컬러 헤더 밴드**(`var(--blk-solid)` 풀블리드): 좌상단 X 닫기 원 · 대형 아이콘 배지(80px 반투명 원 `rgba(255,255,255,.25)`, 안에 아이콘 `<img>` 64px, 탭 = 피커 카드 토글 — surface-card 링 없음, 흰/검 테두리 제거 2026-07-08) · 시간 요약 "10:00 ~ 10:15 (15분)"(라이브 갱신) · **밑줄 제목 input**(투명 bg, `text-on-solid`, `--fs-lg`; create 모드만 autoFocus — iOS는 열기 제스처 핸들러에서 동기 설정해야 키보드 뜸) · (edit) 우측 완료 원(폼 로컬 토글, 저장 시 반영). **빈 제목 저장 시 '새 일정' 자동 대체 — 제목 때문에 저장이 비활성화되는 일 없음**
+  2. **본문**(`surface-background` 위 흰 카드 섹션 순서): **날짜 행 카드**(📅 "2026년 7월 8일 (수)" + 오늘 라벨, 표시 전용) → (피커 카드: 4×2 아이콘 그리드 + 색상 스와치 8개 — **외부 아이콘 팩 금지**(이모지 라이브러리 금지 원칙 계승 — 번들·PWA 프리캐시 비대화 방지), 큐레이션 SVG 8개(`src/icons/*.svg`, id): star 중요 · calendar 일정 · dialog 대화 · notification 알림 · paperplane 발송 · camera 사진 · design 디자인 · compass 탐색. 각 셀 44px 터치 타깃, 아이콘 `<img>` 28px) → **"시간" 섹션**(네이티브 `<input type="time" step={300}>` × 2 — iOS 휠 step 무시는 저장 시 5분 스냅 흡수, `end ≤ start`면 저장 비활성 + 인라인 힌트) → **"소요시간" pill 선택기**(15분/30분/45분/1시간/1시간 30분/2시간, 탭 = `endMin = min(start+d, 1440)`, 현재 길이와 일치하는 pill 자동 활성) → **알림 카드**(토글 + 오프셋 select — 최초 켜기의 사용자 제스처 안에서만 권한 요청, "알림은 앱이 열려 있는 동안에만 동작합니다" + iOS Safari 비-standalone 설치 힌트) → **프로젝트 입력칸**(단일 라인 `<input>`, 로컬 태그 선택·기본 '', Que 연동 블록은 projectLabel 프리필 §14.4) → 메모 카드(3줄) → 삭제(edit 모드만 — **탭-어게인 확인**(첫 탭 → 3초간 "한 번 더 탭하면 삭제"), `window.confirm` 금지)
   3. **하단 대형 저장 pill**(`accent-primary` 풀폭 라운드 — Structured '계속' 위치, `end ≤ start`면 40% 비활성)
 - **저장 시맨틱: 명시적 저장.** 스토어 변이가 정확히 1회(add/update), 검증 초크포인트 1곳, 취소가 자명하게 올바름. 유일한 예외는 카드 위 체크박스(§4.9).
 
@@ -273,7 +274,7 @@ blue · green · orange · red · purple · pink · teal · gray
 
 - 카드에 `data-color={block.color}` → 브리지 CSS가 제네릭 변수로 매핑:
   `[data-color='blue'] { --blk-bg: var(--block-blue-bg); --blk-fg: var(--block-blue-fg); --blk-solid: var(--block-blue-solid); --blk-border: var(--block-blue-border); }` × 8줄 (`src/styles/tokens.css` 하단에 추가).
-- 용도: `--blk-bg` 카드 채움 / `--blk-fg` 제목·캡션 틴트(아이콘 배지는 풀컬러 SVG라 틴트 대상 아님) / `--blk-solid` 좌측 액센트 바·체크박스·리사이즈 그립·스와치·아이콘 배지 링 / `--blk-border` 드래프트 고스트 점선·(옵션) 카드 헤어라인.
+- 용도: `--blk-bg` 카드 채움 / `--blk-fg` 제목·캡션 틴트(아이콘 배지는 풀컬러 SVG라 틴트 대상 아님) / `--blk-solid` 체크박스·리사이즈 그립·스와치 / `--blk-border` 드래프트 고스트 점선·(옵션) 카드 헤어라인.
 - **알려진 갭(토큰에 없음)**: 블록 색의 다크모드 변형 — 라이트 파스텔 bg(#E8F0FE 등)는 다크 카드(#1C1F24) 위에서 과도하게 밝음. Stage 1에서 `[data-theme='dark']` 블록 오버라이드 8줄 추가(bg ≈ L18–22% 딥 뮤트, fg ≈ L75–80%), 4변수 계약은 유지. 헥스는 구현 시 튜닝 1회.
 
 ### 6.3 다크모드 — 단일 신호: `html[data-theme]`
@@ -538,7 +539,7 @@ export interface TimeBlock {
 | `status`=`done` | `completed` | `done → true`, 그 외 → `false`. (역방향은 §14.6) |
 | `status`(전체) | `color`(선택·표시) | 옵션 시각 매핑: `issue→red · on_hold→amber · done→green · 그 외→blue`. 로컬 색 편집이 우선이면 덮지 않음. |
 | `description` | `note` | 최초 프리필만(옵션). 이후 로컬 편집은 Que로 안 감. |
-| `projectLabel`(파생) / `projectId` | (표시용) | 인박스/블록 부제로 노출. **TimeBlock에 저장하지 않음**(모델 최소 유지). `projectName`은 Que Task에 없음 — `projectLabel` 사용. |
+| `projectLabel`(파생) / `projectId` | `project`(프리필) | 인박스 부제로 노출 + 연동 블록 생성 시 로컬 `project` 태그로 **프리필**(이후 편집은 로컬 전용, Que로 안 감). `projectName`은 Que Task에 없음 — `projectLabel` 사용. |
 | `assigneeId` | (필터 조건) | `=== user.id`인 태스크만 취함. 저장하지 않음. |
 | — | `syncState` | 풀 직후 `'synced'`. 로컬 변이 후 플러시 전 `'pending'`. |
 | — | `icon` / `color` / `alarm` | Que에 대응 없음 → 기본값(`'star'`/`blue`(또는 status 파생)/`null`). |

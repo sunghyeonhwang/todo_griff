@@ -222,6 +222,7 @@ export function mapTimedTask(task: QueTask): QueTaskMapping | null {
       note: typeof task.description === 'string' ? task.description : '',
       color: statusToColor(task.status),
       icon: DEFAULT_ICON_ID,
+      project: task.projectLabel ?? '', // Que 프로젝트를 로컬 태그로 프리필(§14.4, 이후 편집은 로컬)
       queTaskId: task.id,
       syncState: 'synced',
     },
@@ -240,6 +241,7 @@ export function inboxTaskToBlockInput(task: QueTask, dateKey: string, startMin: 
     note: typeof task.description === 'string' ? task.description : '',
     color: statusToColor(task.status),
     icon: DEFAULT_ICON_ID,
+    project: task.projectLabel ?? '', // Que 프로젝트를 로컬 태그로 프리필(§14.4, 이후 편집은 로컬)
     queTaskId: task.id,
     syncState: 'pending', // 최초 일정 부여 → move 라이트백 대기(§14.6)
   };

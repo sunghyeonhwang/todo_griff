@@ -162,7 +162,7 @@
    카드에 data-color={block.color} 하나만 지정하면
    제네릭 변수(--blk-*)로 4변수 세트가 매핑된다.
    용도: --blk-bg 카드 채움 / --blk-fg 제목·캡션 틴트(아이콘 배지는 풀컬러 SVG라 틴트 대상 아님) /
-        --blk-solid 액센트 바·체크박스·그립·스와치·아이콘 배지 링 / --blk-border 드래프트 점선.
+        --blk-solid 체크박스·리사이즈 그립·스와치 / --blk-border 드래프트 점선.
    ============================================================ */
 [data-color="blue"]   { --blk-bg: var(--block-blue-bg);   --blk-fg: var(--block-blue-fg);   --blk-solid: var(--block-blue-solid);   --blk-border: var(--block-blue-border); }
 [data-color="green"]  { --blk-bg: var(--block-green-bg);  --blk-fg: var(--block-green-fg);  --blk-solid: var(--block-green-solid);  --blk-border: var(--block-green-border); }
