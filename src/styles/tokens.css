@@ -1,0 +1,173 @@
+/* ============================================================
+   Structured Planner — Design Tokens (CSS Custom Properties)
+   v1.0.0 — design_token/tokens.css 사본 (DESIGN.md §6.1)
+   수정 1건: --hour-height/--px-per-minute 64px/1.0667 → 96px/1.6 (§4.1)
+   추가 2건: data-color 브리지 8줄(§6.2) + 다크 블록 오버라이드 8줄(§6.2)
+   Light 테마가 기본값. [data-theme="dark"] 또는
+   @media (prefers-color-scheme: dark)로 다크 전환.
+   ============================================================ */
+
+:root {
+  /* ---------- Block Colors (bg / fg / solid / border) ---------- */
+  --block-blue-bg: #E8F0FE;   --block-blue-fg: #1A73E8;   --block-blue-solid: #4285F4;   --block-blue-border: #C6DAFC;
+  --block-green-bg: #E6F4EA;  --block-green-fg: #1E8E3E;  --block-green-solid: #34A853;  --block-green-border: #C4E7CE;
+  --block-orange-bg: #FEF0E3; --block-orange-fg: #E8710A; --block-orange-solid: #FA903E; --block-orange-border: #FBDDC3;
+  --block-red-bg: #FCE8E6;    --block-red-fg: #D93025;    --block-red-solid: #EA4335;    --block-red-border: #F7C6C2;
+  --block-purple-bg: #F3E8FD; --block-purple-fg: #8430CE; --block-purple-solid: #A250E8; --block-purple-border: #E3CBF9;
+  --block-pink-bg: #FCE4EC;   --block-pink-fg: #D01884;   --block-pink-solid: #EC4899;   --block-pink-border: #F8C6DD;
+  --block-teal-bg: #E0F7F5;   --block-teal-fg: #00897B;   --block-teal-solid: #14B8A6;   --block-teal-border: #B8ECE6;
+  --block-gray-bg: #F1F3F4;   --block-gray-fg: #5F6368;   --block-gray-solid: #9AA0A6;   --block-gray-border: #DADCE0;
+
+  /* ---------- Surface ---------- */
+  --surface-background:    #F7F8FA;
+  --surface-card:          #FFFFFF;
+  --surface-card-elevated: #FFFFFF;
+  --surface-timeline-line: #EAECEF;
+  --surface-timeline-label:#9AA0A6;
+  --surface-now-indicator: #EA4335;
+  --surface-overlay:       rgba(0,0,0,0.4);
+
+  /* ---------- Text ---------- */
+  --text-primary:   #1F2226;
+  --text-secondary: #5F6368;
+  --text-tertiary:  #9AA0A6;
+  --text-on-solid:  #FFFFFF;
+
+  /* ---------- Accent ---------- */
+  --accent-primary: #4285F4;
+  --accent-success: #34A853;
+  --accent-warning: #FA903E;
+  --accent-danger:  #EA4335;
+
+  /* ---------- Typography ---------- */
+  --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Pretendard', 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'SF Mono', 'Roboto Mono', 'JetBrains Mono', monospace;
+
+  --fs-xs: 11px;  --fs-sm: 13px;  --fs-base: 15px; --fs-md: 17px;
+  --fs-lg: 20px;  --fs-xl: 24px;  --fs-2xl: 28px;  --fs-3xl: 34px;
+
+  --fw-regular: 400; --fw-medium: 500; --fw-semibold: 600; --fw-bold: 700;
+
+  --lh-tight: 1.2; --lh-normal: 1.4; --lh-relaxed: 1.6;
+  --ls-tight: -0.02em; --ls-normal: 0; --ls-wide: 0.02em;
+
+  /* ---------- Spacing ---------- */
+  --space-0: 0px;   --space-1: 4px;  --space-2: 8px;  --space-3: 12px;
+  --space-4: 16px;  --space-5: 20px; --space-6: 24px; --space-8: 32px;
+  --space-10: 40px; --space-12: 48px; --space-16: 64px;
+
+  /* ---------- Radius ---------- */
+  --radius-none: 0px; --radius-sm: 8px;  --radius-md: 12px; --radius-lg: 16px;
+  --radius-xl: 20px;  --radius-2xl: 28px; --radius-full: 9999px;
+
+  /* ---------- Shadow ---------- */
+  --shadow-sm:    0 1px 2px rgba(15,17,20,0.06);
+  --shadow-md:    0 2px 8px rgba(15,17,20,0.08);
+  --shadow-lg:    0 8px 24px rgba(15,17,20,0.12);
+  --shadow-block: 0 1px 3px rgba(15,17,20,0.10);
+
+  /* ---------- Layout ---------- */
+  --app-max-width:      480px;
+  /* ⚠ 원본 64px/1.0667에서 의도적 상향 — DESIGN.md §4.1: 5분=8px 정수 스냅,
+     15분 최소 블록 = 24px = --block-min-height와 정확히 일치. lib/tokens.ts와 동기. */
+  --hour-height:        96px;
+  --px-per-minute:      1.6; /* hour-height / 60 */
+  --time-label-width:   60px;
+  --snap-minutes:       15;
+  --block-min-height:   24px;
+  --now-indicator-width:2px;
+
+  /* ---------- Motion ---------- */
+  --duration-fast: 120ms; --duration-base: 200ms; --duration-slow: 320ms;
+  --ease-standard:   cubic-bezier(0.4, 0.0, 0.2, 1);
+  --ease-decelerate: cubic-bezier(0.0, 0.0, 0.2, 1);
+  --ease-accelerate: cubic-bezier(0.4, 0.0, 1, 1);
+  --ease-spring:     cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* ---------- z-index ---------- */
+  --z-base: 0; --z-block: 10; --z-now: 20; --z-dragging: 30;
+  --z-header: 40; --z-modal: 50; --z-toast: 60;
+}
+
+/* ============================================================
+   Dark theme — attribute 방식
+   ============================================================ */
+[data-theme="dark"] {
+  --surface-background:    #0F1114;
+  --surface-card:          #1C1F24;
+  --surface-card-elevated: #262A30;
+  --surface-timeline-line: #2A2E34;
+  --surface-timeline-label:#7A8085;
+  --surface-now-indicator: #FF6B5E;
+  --surface-overlay:       rgba(0,0,0,0.6);
+
+  --text-primary:   #F1F3F4;
+  --text-secondary: #B4B9BF;
+  --text-tertiary:  #7A8085;
+  --text-on-solid:  #FFFFFF;
+
+  --shadow-sm:    0 1px 2px rgba(0,0,0,0.30);
+  --shadow-md:    0 2px 8px rgba(0,0,0,0.40);
+  --shadow-lg:    0 8px 24px rgba(0,0,0,0.50);
+  --shadow-block: 0 1px 3px rgba(0,0,0,0.35);
+}
+
+/* ============================================================
+   Dark theme — 시스템 설정 자동 대응
+   (data-theme가 명시되지 않은 경우에만)
+   ============================================================ */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --surface-background:    #0F1114;
+    --surface-card:          #1C1F24;
+    --surface-card-elevated: #262A30;
+    --surface-timeline-line: #2A2E34;
+    --surface-timeline-label:#7A8085;
+    --surface-now-indicator: #FF6B5E;
+    --surface-overlay:       rgba(0,0,0,0.6);
+
+    --text-primary:   #F1F3F4;
+    --text-secondary: #B4B9BF;
+    --text-tertiary:  #7A8085;
+    --text-on-solid:  #FFFFFF;
+
+    --shadow-sm:    0 1px 2px rgba(0,0,0,0.30);
+    --shadow-md:    0 2px 8px rgba(0,0,0,0.40);
+    --shadow-lg:    0 8px 24px rgba(0,0,0,0.50);
+    --shadow-block: 0 1px 3px rgba(0,0,0,0.35);
+  }
+}
+
+/* ============================================================
+   블록 다크모드 오버라이드 — DESIGN.md §6.2 (토큰 갭 보충)
+   라이트 파스텔 bg는 다크 카드 위에서 과도하게 밝음 →
+   각 색상의 hue를 유지한 채 bg는 딥 뮤트(L 18–22%), fg는 L 75–80%로 튜닝.
+   solid/border는 원본 유지 (4변수 계약 불변).
+   신호는 html[data-theme] 단일 — 인라인 스크립트(§6.3)가 항상 스탬프.
+   ============================================================ */
+[data-theme="dark"] {
+  --block-blue-bg: #1E2C46;   --block-blue-fg: #8AB4F8;
+  --block-green-bg: #20402A;  --block-green-fg: #A3E3B4;
+  --block-orange-bg: #46311B; --block-orange-fg: #F6C08C;
+  --block-red-bg: #40201D;    --block-red-fg: #F49B92;
+  --block-purple-bg: #322044; --block-purple-fg: #CFA3F0;
+  --block-pink-bg: #3D1F2C;   --block-pink-fg: #F49BC5;
+  --block-teal-bg: #1E4640;   --block-teal-fg: #A0E6DD;
+  --block-gray-bg: #2A2E33;   --block-gray-fg: #BDC1C6;
+}
+
+/* ============================================================
+   data-color 브리지 — DESIGN.md §6.2
+   카드에 data-color={block.color} 하나만 지정하면
+   제네릭 변수(--blk-*)로 4변수 세트가 매핑된다.
+   용도: --blk-bg 카드 채움 / --blk-fg 제목·이모지 틴트 /
+        --blk-solid 액센트 바·체크박스·그립·스와치 / --blk-border 드래프트 점선.
+   ============================================================ */
+[data-color="blue"]   { --blk-bg: var(--block-blue-bg);   --blk-fg: var(--block-blue-fg);   --blk-solid: var(--block-blue-solid);   --blk-border: var(--block-blue-border); }
+[data-color="green"]  { --blk-bg: var(--block-green-bg);  --blk-fg: var(--block-green-fg);  --blk-solid: var(--block-green-solid);  --blk-border: var(--block-green-border); }
+[data-color="orange"] { --blk-bg: var(--block-orange-bg); --blk-fg: var(--block-orange-fg); --blk-solid: var(--block-orange-solid); --blk-border: var(--block-orange-border); }
+[data-color="red"]    { --blk-bg: var(--block-red-bg);    --blk-fg: var(--block-red-fg);    --blk-solid: var(--block-red-solid);    --blk-border: var(--block-red-border); }
+[data-color="purple"] { --blk-bg: var(--block-purple-bg); --blk-fg: var(--block-purple-fg); --blk-solid: var(--block-purple-solid); --blk-border: var(--block-purple-border); }
+[data-color="pink"]   { --blk-bg: var(--block-pink-bg);   --blk-fg: var(--block-pink-fg);   --blk-solid: var(--block-pink-solid);   --blk-border: var(--block-pink-border); }
+[data-color="teal"]   { --blk-bg: var(--block-teal-bg);   --blk-fg: var(--block-teal-fg);   --blk-solid: var(--block-teal-solid);   --blk-border: var(--block-teal-border); }
+[data-color="gray"]   { --blk-bg: var(--block-gray-bg);   --blk-fg: var(--block-gray-fg);   --blk-solid: var(--block-gray-solid);   --blk-border: var(--block-gray-border); }

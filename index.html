@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <!-- 브라우저 크롬 색 — 라이트/다크 각각 (DESIGN.md §8, surface-background 토큰) -->
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#F7F8FA" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0F1114" />
+    <title>DayBlocks</title>
+    <!-- 다크모드 단일 신호: html[data-theme] — 첫 페인트 전 동기 스탬프 (DESIGN.md §6.3) -->
+    <script>
+      (() => {
+        const mq = matchMedia('(prefers-color-scheme: dark)');
+        const apply = () => {
+          document.documentElement.dataset.theme =
+            localStorage.theme ?? (mq.matches ? 'dark' : 'light');
+        };
+        apply();
+        if (!localStorage.theme) mq.addEventListener('change', apply);
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

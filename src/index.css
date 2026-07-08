@@ -1,0 +1,70 @@
+/* Tailwind v4 진입점 — DESIGN.md §6.1
+   토큰의 소스 오브 트루스는 styles/tokens.css (런타임 CSS 변수).
+   @theme inline은 그 변수를 유틸리티 네임스페이스로 "참조 매핑"만 한다
+   (값 복제 없음 → 다크 전환 시 CSS 변수만 바뀌어도 유틸리티가 따라감). */
+/* source(".") = src/만 스캔 — DESIGN.md 등 문서 속 클래스 유사 문자열이
+   유틸리티로 오생성되는 것 방지 (index.html에는 클래스 없음) */
+@import 'tailwindcss' source('.');
+@import './styles/tokens.css';
+
+/* dark: 변형의 단일 신호 = html[data-theme] — DESIGN.md §6.3 */
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+@theme inline {
+  /* Typography */
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+  --text-xs: var(--fs-xs);
+  --text-sm: var(--fs-sm);
+  --text-base: var(--fs-base);
+  --text-md: var(--fs-md);
+  --text-lg: var(--fs-lg);
+  --text-xl: var(--fs-xl);
+  --text-2xl: var(--fs-2xl);
+  --text-3xl: var(--fs-3xl);
+
+  /* Surface / Text / Accent 색 → bg-surface-* / text-text-* / text-accent-* 등 */
+  --color-surface-background: var(--surface-background);
+  --color-surface-card: var(--surface-card);
+  --color-surface-card-elevated: var(--surface-card-elevated);
+  --color-surface-timeline-line: var(--surface-timeline-line);
+  --color-surface-timeline-label: var(--surface-timeline-label);
+  --color-surface-now-indicator: var(--surface-now-indicator);
+  --color-surface-overlay: var(--surface-overlay);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-tertiary: var(--text-tertiary);
+  --color-text-on-solid: var(--text-on-solid);
+  --color-accent-primary: var(--accent-primary);
+  --color-accent-success: var(--accent-success);
+  --color-accent-warning: var(--accent-warning);
+  --color-accent-danger: var(--accent-danger);
+
+  /* Radius → rounded-sm/md/lg/xl/2xl (토큰 스케일로 교체) */
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
+  --radius-2xl: var(--radius-2xl);
+
+  /* Shadow → shadow-sm/md/lg/block */
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+  --shadow-block: var(--shadow-block);
+
+  /* Layout — max-w-app(480px) / h-hour(96px) / w-ruler(60px) */
+  --container-app: var(--app-max-width);
+  --spacing-hour: var(--hour-height);
+  --spacing-ruler: var(--time-label-width);
+}
+
+@layer base {
+  html {
+    font-family: var(--font-sans);
+  }
+  body {
+    background: var(--surface-background);
+    color: var(--text-primary);
+  }
+}
