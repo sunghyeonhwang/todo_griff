@@ -214,11 +214,12 @@ formatMinutes(m)  // 순수 산술 'HH:mm', m=1440 → '24:00'
 - 위치는 `minutesToY(nowMinutes())` — 30초 인터벌 + `visibilitychange → visible` 시 즉시 갱신(백그라운드 탭 타이머 스로틀 보정).
 - 오토스크롤 규칙(단일 규범): **최초 마운트(오늘)** = instant, 나우라인이 뷰포트 상단 30%(`SCROLL_ANCHOR`) / **"오늘" 버튼** = 날짜를 오늘로 + 같은 목표로 smooth 스크롤, **이미 오늘이어도 스크롤 실행** / **그 외 절대 자동 스크롤 없음**(인터벌 틱·visibilitychange 포함 — 사용자 스크롤 위치는 불가침).
 
-### 4.8 블록 카드 아나토미 (`TimeBlockCard.tsx`)
+### 4.8 블록 카드 아나토미 (`TimeBlockCard.tsx`) — Structured 정체성(사용자 제공 스크린샷 기준)
 
-- 카드: `rounded-md`(토큰 12px), 배경 `var(--blk-bg)`, 좌측 3px 라운드 액센트 바 `var(--blk-solid)`, 그림자 `var(--shadow-block)`, 좌우 인셋: 거터(60px) 오른쪽 ~ 우측 8px.
-- 내용 행: 이모지(16px) + 한 줄 말줄임 제목(`--fs-sm` 13px, `--fw-semibold`, `var(--blk-fg)`) + 우측 체크박스.
-- 시간 캡션 "HH:mm – HH:mm"(`--fs-xs` 11px, 70% 불투명도)은 **블록 높이 ≥ 40px(25분 이상)일 때만** 표시 — 15분 블록(24px)은 이모지+제목 한 줄만.
+- 카드: `rounded-md`(토큰 12px), 배경 `var(--blk-bg)`, 그림자 `var(--shadow-block)`, 좌우 인셋: 거터(60px) 오른쪽 ~ 우측 8px. (액센트 바 없음 — 색 정체성은 배지 링 + 카드 틴트)
+- 내용: **원형 이모지 배지**(`bg-surface-card` 원 + `ring-2 var(--blk-solid)`, 28px/콤팩트 20px) + 제목·캡션 스택 + 우측 체크박스.
+- 제목: 한 줄 말줄임(`--fs-sm` 13px, `--fw-semibold`, `var(--blk-fg)`).
+- 시간 캡션 "HH:mm – HH:mm · 소요시간"(예: "12:45 – 14:30 · 1시간 45분", `--fs-xs`, 70% 불투명도)은 **블록 높이 ≥ 40px(25분 이상)일 때만** — 15분 블록(24px)은 배지+제목 한 줄만.
 - 접근성: 카드는 포커스 가능한 버튼(Enter/Space → 에디터), 체크박스에 `aria-label`. 키보드 사용자의 시간 조정 경로는 에디터의 네이티브 time input(dnd-kit KeyboardSensor는 의도적 미사용 — 문서화된 결정).
 
 ### 4.9 탭/체크박스/완료 상태
@@ -246,16 +247,12 @@ formatMinutes(m)  // 순수 산술 'HH:mm', m=1440 → '24:00'
 
 - 시트: viewport 하단 고정, `max-w-app`(480px), 상단 라운드 `--radius-xl`(20px), 백드롭 `var(--surface-overlay)`, 슬라이드업 `--duration-slow`(320ms) `--ease-decelerate`(CSS transition, 애니메이션 라이브러리 없음), 36×5px 그래버, max-height `85dvh` 내부 스크롤. `role="dialog" aria-modal`, 포커스 트랩, Escape/백드롭 탭/그래버 80px 하향 드래그로 닫힘. `z-modal(50)`.
 - **iOS 키보드 대응**: `dvh`는 온스크린 키보드를 추적하지 않음 → 시트 열림 동안 `visualViewport` resize/scroll 리스너로 시트를 오프셋(`window.innerHeight - visualViewport.height - visualViewport.offsetTop`).
-- 호출: `uiStore.editor` — 카드 탭 / 드래그 생성 릴리즈 / 헤더 "+" 버튼 3곳. App 루트에 인스턴스 1개. **타이핑 드래프트는 에디터 로컬 state** — 스토어는 "열려 있음 + 대상"만 앎(타임라인 리렌더 차단).
-- **헤더 "+" 드래프트 정의**: `start = min(다음 정시, 1380 /* 23:00 */)`, `end = min(start+60, 1440)` → create 모드.
-- 필드 (위→아래):
-  1. 헤더 행: 취소(좌) · "새 일정 / 일정 편집"(중) · **저장**(우, `--fw-semibold`, `var(--accent-primary)`)
-  2. 제목 input (`--fs-md` 17px; create 모드만 autoFocus — iOS는 열기 제스처 핸들러에서 동기 설정해야 키보드 뜸). **빈 제목 저장 시 '새 일정' 자동 대체 — 제목 때문에 저장이 비활성화되는 일 없음**
-  3. 이모지 버튼(44×44) → 인라인 6×4 큐레이션 그리드 확장 + 우측 색상 스와치 **8개(4×2)**, 28px 원(`--blk-solid` 채움), 선택 시 2px 링. **이모지 라이브러리 금지**(500KB+, PWA 프리캐시 파괴). 큐레이션 24개: 📌 💼 📝 📚 💻 🎨 🏃 🏋️ 🧘 🚶 🍳 🍽️ ☕ 🛒 🧹 🚿 😴 🌙 💊 📞 🚗 ✈️ 🎮 🎵
-  4. 시간 범위: 네이티브 `<input type="time" step={300}>` × 2 ("시작"/"종료"). iOS 휠이 step 무시하는 건 저장 시 5분 스냅으로 흡수. `end ≤ start`면 저장 비활성 + 인라인 힌트
-  5. 알림: 토글 + (켜짐 시) 오프셋 select. 최초 켜기 = `Notification.requestPermission()` 트리거(사용자 제스처 안에서만). 거부/미지원이어도 알림 기능 유지(인앱 토스트로 발화). 안내: "알림은 앱이 열려 있는 동안에만 동작합니다". **iOS Safari 비-standalone 감지 시** 닫기 가능한 힌트 추가: "홈 화면에 추가하면 알림을 받을 수 있어요" (+ 공유 → 홈 화면에 추가 한 줄 안내)
-  6. 메모 textarea (3줄)
-  7. 삭제(edit 모드만): 하단 분리 배치, 풀폭 `var(--accent-danger)` 텍스트 버튼, **탭-어게인 확인**(첫 탭 → 3초간 "한 번 더 탭하면 삭제") — `window.confirm` 금지
+- 호출: `uiStore.editor` — 카드 탭 / 드래그 생성 릴리즈 / **플로팅 + 버튼(AddFab)** 3곳. App 루트에 인스턴스 1개. **타이핑 드래프트는 에디터 로컬 state** — 스토어는 "열려 있음 + 대상"만 앎(타임라인 리렌더 차단).
+- **FAB "+" 드래프트 정의**: `start = min(다음 정시, 1380 /* 23:00 */)`, `end = min(start+60, 1440)` → create 모드.
+- **레이아웃(Structured 아나토미 — 사용자 제공 스크린샷 기준)**:
+  1. **컬러 헤더 밴드**(`var(--blk-solid)` 풀블리드): 좌상단 X 닫기 원 · 대형 원형 이모지 배지(64px, `ring-4 surface-card`, 탭 = 피커 카드 토글) · 시간 요약 "10:00 ~ 10:15 (15분)"(라이브 갱신) · **밑줄 제목 input**(투명 bg, `text-on-solid`, `--fs-lg`; create 모드만 autoFocus — iOS는 열기 제스처 핸들러에서 동기 설정해야 키보드 뜸) · (edit) 우측 완료 원(폼 로컬 토글, 저장 시 반영). **빈 제목 저장 시 '새 일정' 자동 대체 — 제목 때문에 저장이 비활성화되는 일 없음**
+  2. **본문**(`surface-background` 위 흰 카드 섹션 순서): **날짜 행 카드**(📅 "2026년 7월 8일 (수)" + 오늘 라벨, 표시 전용) → (피커 카드: 6×4 이모지 그리드 + 색상 스와치 8개 — **이모지 라이브러리 금지**(500KB+, PWA 프리캐시 파괴), 큐레이션 24개: 📌 💼 📝 📚 💻 🎨 🏃 🏋️ 🧘 🚶 🍳 🍽️ ☕ 🛒 🧹 🚿 😴 🌙 💊 📞 🚗 ✈️ 🎮 🎵) → **"시간" 섹션**(네이티브 `<input type="time" step={300}>` × 2 — iOS 휠 step 무시는 저장 시 5분 스냅 흡수, `end ≤ start`면 저장 비활성 + 인라인 힌트) → **"소요시간" pill 선택기**(15분/30분/45분/1시간/1시간 30분/2시간, 탭 = `endMin = min(start+d, 1440)`, 현재 길이와 일치하는 pill 자동 활성) → **알림 카드**(토글 + 오프셋 select — 최초 켜기의 사용자 제스처 안에서만 권한 요청, "알림은 앱이 열려 있는 동안에만 동작합니다" + iOS Safari 비-standalone 설치 힌트) → 메모 카드(3줄) → 삭제(edit 모드만 — **탭-어게인 확인**(첫 탭 → 3초간 "한 번 더 탭하면 삭제"), `window.confirm` 금지)
+  3. **하단 대형 저장 pill**(`accent-primary` 풀폭 라운드 — Structured '계속' 위치, `end ≤ start`면 40% 비활성)
 - **저장 시맨틱: 명시적 저장.** 스토어 변이가 정확히 1회(add/update), 검증 초크포인트 1곳, 취소가 자명하게 올바름. 유일한 예외는 카드 위 체크박스(§4.9).
 
 ---
@@ -294,7 +291,8 @@ blue · green · orange · red · purple · pink · teal · gray
 ### 6.5 앱 셸 & 레이아웃
 
 - 페이지 배경 `var(--surface-background)`, 컬럼·카드 `var(--surface-card)`. 루트 `h-dvh`(100vh·h-screen 금지 — iOS 툴바 문제), `max-w-app mx-auto` 컬럼. 데스크톱: "폰 프레임"(측면 헤어라인 + `--shadow-lg`), 모바일: 엣지-투-엣지.
-- 헤더는 스크롤러 **밖의** `shrink-0` 형제(sticky + backdrop-blur의 iOS 모멘텀 지터 회피), `pt-[env(safe-area-inset-top)]`, `z-header(40)`.
+- 헤더는 스크롤러 **밖의** `shrink-0` 형제(sticky + backdrop-blur의 iOS 모멘텀 지터 회피), `pt-[env(safe-area-inset-top)]`, `z-header(40)`. **2행 구성(Structured 정체성)**: 1행 = ‹ › 화살표 + ko 날짜 라벨 + "오늘" / 2행 = **주간 스트립**(월요일 시작 7칸: 요일 글자 + 날짜 원, 선택일 = accent 채움 + 흰 글자, 오늘(비선택) = accent 글자, 탭 = goToDate — activeDateKey가 속한 주를 파생 렌더라 주 경계 이동 시 자동 리센터).
+- **플로팅 + 버튼(AddFab)**: 컬럼(relative) 우하단 고정 56px 원형, `accent-primary` 채움 + 흰 +, safe-area 보정, `z-header(40)`(시트 백드롭 50이 덮음). 일정 추가 진입점 — 헤더에는 + 없음.
 - 스크롤러: `flex-1 min-h-0 overflow-y-auto overscroll-contain`.
 - `viewport-fit=cover` + 바텀시트 `pb-[calc(env(safe-area-inset-bottom)+8px)]` — 없으면 PWA 스탠드얼론에서 노치 아래 깔림.
 - **빈 날 상태**: 09:00–11:00 밴드에 절대 배치된 은은한 힌트("계획이 없어요 ✨", `var(--text-tertiary)`, `pointer-events: none`), 생성 드래프트 활성 중엔 숨김.
@@ -343,7 +341,8 @@ src/
 ├── styles/tokens.css         # design_token/tokens.css 사본 + data-color 브리지 8줄 + 다크 블록 오버라이드 8줄
 ├── types.ts                  # TimeBlock, BlockColor, AlarmOffset, EditorState
 ├── components/
-│   ├── DateHeader.tsx        # ‹ › 화살표, 날짜 라벨(ko), "오늘", "+" 버튼
+│   ├── DateHeader.tsx        # ‹ › 화살표, 날짜 라벨(ko), "오늘" + 주간 스트립(§6.5)
+│   ├── AddFab.tsx            # 플로팅 + 버튼(§6.5) — 다음 정시 드래프트로 openCreate
 │   ├── Timeline.tsx          # 스크롤 컨테이너 소유 + DndContext + 캔버스 조립 + 스크롤-투-나우
 │   ├── TimelineGrid.tsx      # 정적 시간 눈금/라벨 25개 (React.memo, 1회 렌더)
 │   ├── NowLine.tsx           # 현재 시각 라인 + 도트 + 시각 칩 (surface-now-indicator)

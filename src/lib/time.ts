@@ -3,7 +3,7 @@
 // 금지: 일중(intra-day) 위치 계산에 differenceInMinutes/startOfDay (DST 날 ±60분 오차),
 //       라벨 포맷에 setHours(d, 24) (다음 날로 롤오버).
 
-import { addDays, format, parse } from 'date-fns';
+import { addDays, format, parse, startOfWeek } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { LAYOUT } from './tokens';
 
@@ -100,4 +100,20 @@ export function isTodayKey(key: string): boolean {
 /** 헤더 날짜 라벨 — 예: '7월 8일 수요일' (ko 로케일) */
 export function formatHeaderDate(key: string): string {
   return format(fromDateKey(key), 'M월 d일 EEEE', { locale: ko });
+}
+
+/** 에디터 날짜 행 라벨 — 예: '2026년 7월 8일 (수)' (§5, ko 로케일) */
+export function formatFullDate(key: string): string {
+  return format(fromDateKey(key), 'yyyy년 M월 d일 (EEEEEE)', { locale: ko });
+}
+
+/** key가 속한 주(월요일 시작)의 dateKey 7개 — 주간 스트립(§6.5) */
+export function weekDateKeys(key: string): string[] {
+  const monday = startOfWeek(fromDateKey(key), { weekStartsOn: 1 });
+  return Array.from({ length: 7 }, (_, i) => toDateKey(addDays(monday, i)));
+}
+
+/** dateKey의 일(day of month) 숫자 — 주간 스트립 라벨 */
+export function dayOfMonth(key: string): number {
+  return Number(key.slice(8));
 }

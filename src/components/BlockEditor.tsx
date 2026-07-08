@@ -6,22 +6,36 @@ import EmojiGrid from './EmojiGrid';
 import { requestNotificationPermission } from '../lib/alarms';
 import { DEFAULT_EMOJI } from '../lib/emojis';
 import { STRINGS } from '../lib/strings';
-import { DAY_MINUTES, MIN_DURATION, STORE_SNAP, formatMinutes } from '../lib/time';
+import {
+  DAY_MINUTES,
+  MIN_DURATION,
+  STORE_SNAP,
+  formatFullDate,
+  formatMinutes,
+  isTodayKey,
+} from '../lib/time';
 import { ALARM_OFFSETS, DEFAULT_COLOR, useBlocksStore } from '../store/blocksStore';
 import { useUiStore } from '../store/uiStore';
 import type { AlarmOffset, BlockColor, EditorState } from '../types';
 
-// 에디터 바텀시트 — DESIGN.md §5
-// - 호출 3곳(카드 탭 / 드래그 생성 릴리즈 / 헤더 "+")이 uiStore.editor만 세팅, 인스턴스는 App에 1개.
+// 에디터 바텀시트 — DESIGN.md §5 (Structured 아나토미)
+// 레이아웃(사용자 제공 스크린샷 기준):
+//   [컬러 헤더 밴드 --blk-solid] X 닫기 · 대형 원형 이모지 배지(탭=피커) ·
+//     "10:00 ~ 10:15 (15분)" 요약 · 밑줄 제목 입력 · (edit) 완료 원
+//   [본문 surface-background] 날짜 행 카드 → (피커 카드) → 시간 카드 →
+//     소요시간 pill 선택기 → 알림 카드 → 메모 카드 → 삭제
+//   [하단 대형 저장 pill]
+// 로직 불변식(기존 유지):
+// - 호출 3곳(카드 탭 / 드래그 생성 릴리즈 / FAB)이 uiStore.editor만 세팅, 인스턴스는 App에 1개.
 // - 타이핑 드래프트는 에디터 로컬 state — 스토어는 "열려 있음 + 대상"만 안다(타임라인 리렌더 차단).
-// - 저장 시맨틱: 명시적 저장 — 스토어 변이는 저장 버튼의 add/update 정확히 1회, 취소는 자명하게 무변경.
-// - 빈 제목은 스토어가 '새 일정'으로 대체(§2) — 제목 때문에 저장이 비활성화되는 일 없음.
-//   저장 비활성 조건은 end ≤ start 하나뿐(인라인 힌트 병행).
-// - 알림 토글: 최초 켜기의 사용자 제스처 안에서만 권한 요청(lib/alarms 경유 §9) —
-//   발화는 30초 폴링 스케줄러(§7). 거부/미지원이어도 인앱 토스트로 발화(기능 유지).
+// - 저장 시맨틱: 명시적 저장 — 스토어 변이는 저장 버튼의 add/update 정확히 1회.
+// - 빈 제목은 스토어가 '새 일정'으로 대체(§2). 저장 비활성 조건은 end ≤ start 하나뿐.
+// - 알림 토글: 최초 켜기의 사용자 제스처 안에서만 권한 요청(lib/alarms 경유 §9).
 
 const DELETE_CONFIRM_MS = 3000;              // 탭-어게인 확인 유지 시간(§5 — "3초간")
 const DEFAULT_ALARM_OFFSET: AlarmOffset = 10; // 최초 켜기 기본 오프셋(§5 미규정 — 10분 전 채택)
+/** 소요시간 pill 프리셋(분) — Structured 스크린샷 기준(§5) */
+const DURATION_PRESETS = [15, 30, 45, 60, 90, 120] as const;
 
 type OpenEditor = Exclude<EditorState, { mode: 'closed' }>;
 
@@ -34,6 +48,7 @@ interface FormState {
   alarmOn: boolean;
   alarmOffset: AlarmOffset; // 꺼도 세션 동안 오프셋 유지(§2)
   note: string;
+  completed: boolean; // 밴드 우측 완료 원(edit 전용) — 저장 시 update에만 반영
 }
 
 // ---------- time input 값 ↔ 분 ----------
@@ -105,6 +120,7 @@ function initialForm(editor: OpenEditor): FormState {
         alarmOn: b.alarm !== null,
         alarmOffset: b.alarm ?? DEFAULT_ALARM_OFFSET,
         note: b.note,
+        completed: b.completed,
       };
     }
   }
@@ -120,6 +136,7 @@ function initialForm(editor: OpenEditor): FormState {
     alarmOn: false,
     alarmOffset: DEFAULT_ALARM_OFFSET,
     note: '',
+    completed: false,
   };
 }
 
@@ -152,6 +169,12 @@ function EditorForm({ editor }: { editor: OpenEditor }) {
   const [iosHintDismissed, setIosHintDismissed] = useState(false);
 
   const timeValid = form.endMin > form.startMin; // end ≤ start → 저장 비활성 + 힌트(§5)
+  // 날짜 행 표시용 — edit는 대상 블록의 dateKey(폼 열림 시점 고정 값이라 getState로 충분)
+  const dateKey =
+    editor.mode === 'create'
+      ? editor.draft.dateKey
+      : (useBlocksStore.getState().blocks[editor.blockId]?.dateKey ??
+        useUiStore.getState().activeDateKey);
 
   // ----- 저장 / 취소 -----
   const handleSave = () => {
@@ -166,7 +189,7 @@ function EditorForm({ editor }: { editor: OpenEditor }) {
       note: form.note,
     };
     if (editor.mode === 'create') addBlock({ dateKey: editor.draft.dateKey, ...fields });
-    else updateBlock(editor.blockId, fields);
+    else updateBlock(editor.blockId, { ...fields, completed: form.completed });
     closeEditor();
   };
 
@@ -205,170 +228,270 @@ function EditorForm({ editor }: { editor: OpenEditor }) {
     setIosHintDismissed(true);
   };
 
+  const summary = STRINGS.editor.timeSummary(
+    formatMinutes(form.startMin),
+    formatMinutes(form.endMin),
+    STRINGS.duration(Math.max(form.endMin - form.startMin, 0)),
+  );
+
   return (
-    <div className="flex flex-col gap-4 pb-2">
-      {/* 1. 헤더 행: 취소 · 타이틀 · 저장 */}
-      <div className="flex items-center justify-between gap-2">
+    // BottomSheet의 px-4·pb-safe를 -m로 상쇄 — 밴드/본문이 시트 전폭·전고를 차지(§5)
+    <div className="-mx-4 -mb-[calc(env(safe-area-inset-bottom)+8px)] flex flex-col">
+      {/* ── 컬러 헤더 밴드(--blk-solid): X · 배지 · 시간 요약 + 밑줄 제목 · (edit) 완료 원 ── */}
+      <div data-color={form.color} className="bg-(--blk-solid) px-4 pt-1 pb-6">
         <button
           type="button"
+          aria-label={STRINGS.editor.close}
           onClick={closeEditor}
-          className="h-9 shrink-0 rounded-full px-2 text-base text-text-secondary active:bg-surface-background"
+          className="flex size-9 items-center justify-center rounded-full bg-surface-card text-text-primary shadow-sm active:scale-95"
         >
-          {STRINGS.editor.cancel}
+          <svg
+            aria-hidden
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2.2}
+            strokeLinecap="round"
+            className="size-4"
+          >
+            <path d="M6 6l12 12M18 6L6 18" />
+          </svg>
         </button>
-        <h2 className="min-w-0 truncate text-base font-semibold text-text-primary">
-          {isEdit ? STRINGS.editor.editTitle : STRINGS.editor.createTitle}
-        </h2>
-        <button
-          type="button"
-          onClick={handleSave}
-          disabled={!timeValid}
-          className="h-9 shrink-0 rounded-full px-2 text-base font-semibold text-accent-primary disabled:opacity-40 active:bg-surface-background"
-        >
-          {STRINGS.editor.save}
-        </button>
+        <div className="mt-2 flex items-center gap-4">
+          <button
+            type="button"
+            aria-label={STRINGS.editor.emojiButtonLabel}
+            aria-expanded={pickerOpen}
+            onClick={() => setPickerOpen((v) => !v)}
+            className="flex size-16 shrink-0 items-center justify-center rounded-full bg-[rgba(255,255,255,0.25)] text-3xl leading-none ring-4 ring-surface-card active:scale-95"
+          >
+            {form.emoji}
+          </button>
+          <div className="min-w-0 flex-1">
+            <div className="text-sm tabular-nums text-text-on-solid/85">{summary}</div>
+            <input
+              type="text"
+              value={form.title}
+              onChange={(e) => patch({ title: e.target.value })}
+              placeholder={STRINGS.editor.titlePlaceholder}
+              autoFocus={editor.mode === 'create'}
+              className="w-full border-b-2 border-[rgba(255,255,255,0.5)] bg-transparent pb-1 text-xl font-semibold text-text-on-solid outline-none placeholder:text-text-on-solid/60 focus:border-surface-card"
+            />
+          </div>
+          {isEdit && (
+            <button
+              type="button"
+              aria-label={STRINGS.card.completeLabel}
+              aria-pressed={form.completed}
+              onClick={() => patch({ completed: !form.completed })}
+              className={`flex size-8 shrink-0 items-center justify-center rounded-full border-2 border-surface-card transition-colors duration-(--duration-fast) ${
+                form.completed ? 'bg-surface-card text-(--blk-solid)' : 'text-transparent'
+              }`}
+            >
+              <svg
+                aria-hidden
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={3.5}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="size-4"
+              >
+                <path d="M5 13l4 4L19 7" />
+              </svg>
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* 2. 제목 — create 모드만 autoFocus(§5) */}
-      <input
-        type="text"
-        value={form.title}
-        onChange={(e) => patch({ title: e.target.value })}
-        placeholder={STRINGS.editor.titlePlaceholder}
-        autoFocus={editor.mode === 'create'}
-        className="w-full rounded-md bg-surface-background px-3 py-2.5 text-md text-text-primary outline-none placeholder:text-text-tertiary focus:ring-2 focus:ring-accent-primary"
-      />
+      {/* ── 본문(surface-background 위 흰 카드 섹션들) ── */}
+      <div className="flex flex-col gap-4 bg-surface-background px-4 pt-4 pb-[calc(env(safe-area-inset-bottom)+16px)]">
+        {/* 날짜 행 카드 — 표시 전용(활성 날짜) */}
+        <div className="flex items-center gap-2.5 rounded-lg bg-surface-card px-3.5 py-3 shadow-sm">
+          <svg
+            aria-hidden
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={1.8}
+            className="size-5 shrink-0 text-accent-primary"
+          >
+            <rect x="3" y="5" width="18" height="16" rx="3" />
+            <path d="M3 9h18M8 3v4M16 3v4" strokeLinecap="round" />
+          </svg>
+          <span className="min-w-0 flex-1 truncate text-base text-text-primary">
+            {formatFullDate(dateKey)}
+          </span>
+          {isTodayKey(dateKey) && (
+            <span className="shrink-0 text-sm text-text-tertiary">{STRINGS.header.today}</span>
+          )}
+        </div>
 
-      {/* 3. 이모지 버튼(44×44) → 인라인 그리드 + 색상 스와치 */}
-      <div data-color={form.color}>
-        <button
-          type="button"
-          aria-label={STRINGS.editor.emojiButtonLabel}
-          aria-expanded={pickerOpen}
-          onClick={() => setPickerOpen((v) => !v)}
-          className="flex size-11 items-center justify-center rounded-md bg-(--blk-bg) text-lg"
-        >
-          {form.emoji}
-        </button>
+        {/* 이모지·색상 피커 카드 — 밴드 배지 탭으로 토글 */}
         {pickerOpen && (
-          <div className="mt-2 flex flex-wrap items-start gap-4 rounded-md bg-surface-background p-3">
+          <div className="flex flex-wrap items-start gap-4 rounded-lg bg-surface-card p-3.5 shadow-sm">
             <EmojiGrid value={form.emoji} onSelect={(emoji) => patch({ emoji })} />
             <ColorSwatchRow value={form.color} onSelect={(color) => patch({ color })} />
           </div>
         )}
-      </div>
 
-      {/* 4. 시간 범위 — 네이티브 time input ×2, step 5분(iOS 휠 무시는 저장 시 스냅 흡수 §5) */}
-      <div className="flex items-start gap-3">
-        <label className="flex flex-1 flex-col gap-1 text-xs text-text-secondary">
-          {STRINGS.editor.startLabel}
-          <input
-            type="time"
-            step={STORE_SNAP * 60}
-            value={minutesToInputValue(form.startMin)}
-            onChange={(e) => {
-              const m = inputValueToMinutes(e.target.value);
-              if (m !== null) patch({ startMin: m });
-            }}
-            className="rounded-md bg-surface-background px-3 py-2 text-base text-text-primary tabular-nums outline-none focus:ring-2 focus:ring-accent-primary"
-          />
-        </label>
-        <label className="flex flex-1 flex-col gap-1 text-xs text-text-secondary">
-          {STRINGS.editor.endLabel}
-          <input
-            type="time"
-            step={STORE_SNAP * 60}
-            value={minutesToInputValue(form.endMin)}
-            onChange={(e) => {
-              const m = inputValueToMinutes(e.target.value);
-              if (m !== null) patch({ endMin: m });
-            }}
-            className="rounded-md bg-surface-background px-3 py-2 text-base text-text-primary tabular-nums outline-none focus:ring-2 focus:ring-accent-primary"
-          />
-        </label>
-      </div>
-      {!timeValid && (
-        <p role="alert" className="-mt-2 text-xs text-accent-danger">
-          {STRINGS.editor.timeOrderHint}
-        </p>
-      )}
-
-      {/* 5. 알림 — 토글(UI만, 발화는 Stage 6) + 켜짐 시 오프셋 select + 정직한 한계 안내 */}
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-base text-text-primary">{STRINGS.editor.alarmLabel}</span>
-          <div className="flex items-center gap-2">
-            {form.alarmOn && (
-              <select
-                aria-label={STRINGS.editor.alarmLabel}
-                value={form.alarmOffset}
-                onChange={(e) => patch({ alarmOffset: Number(e.target.value) as AlarmOffset })}
-                className="rounded-md bg-surface-background px-2 py-1.5 text-sm text-text-primary outline-none focus:ring-2 focus:ring-accent-primary"
-              >
-                {ALARM_OFFSETS.map((offset) => (
-                  <option key={offset} value={offset}>
-                    {STRINGS.editor.alarmOffsets[offset]}
-                  </option>
-                ))}
-              </select>
-            )}
-            <button
-              type="button"
-              role="switch"
-              aria-checked={form.alarmOn}
-              aria-label={STRINGS.editor.alarmLabel}
-              onClick={handleAlarmToggle}
-              className={`h-7 w-12 shrink-0 rounded-full p-0.5 transition-colors duration-(--duration-fast) ${
-                form.alarmOn ? 'bg-accent-primary' : 'bg-surface-timeline-line'
-              }`}
-            >
-              <span
-                className={`block size-6 rounded-full bg-surface-card shadow-sm transition-transform duration-(--duration-fast) ${
-                  form.alarmOn ? 'translate-x-5' : ''
-                }`}
+        {/* 시간 섹션 — 네이티브 time input ×2 (§5 필드 4: iOS 휠 step 무시는 저장 시 스냅 흡수) */}
+        <section className="flex flex-col gap-2">
+          <h3 className="px-1 text-lg font-bold text-text-primary">
+            {STRINGS.editor.timeSection}
+          </h3>
+          <div className="flex items-start gap-3 rounded-lg bg-surface-card p-3.5 shadow-sm">
+            <label className="flex flex-1 flex-col gap-1 text-xs text-text-secondary">
+              {STRINGS.editor.startLabel}
+              <input
+                type="time"
+                step={STORE_SNAP * 60}
+                value={minutesToInputValue(form.startMin)}
+                onChange={(e) => {
+                  const m = inputValueToMinutes(e.target.value);
+                  if (m !== null) patch({ startMin: m });
+                }}
+                className="rounded-md bg-surface-background px-3 py-2 text-base text-text-primary tabular-nums outline-none focus:ring-2 focus:ring-accent-primary"
               />
-            </button>
+            </label>
+            <label className="flex flex-1 flex-col gap-1 text-xs text-text-secondary">
+              {STRINGS.editor.endLabel}
+              <input
+                type="time"
+                step={STORE_SNAP * 60}
+                value={minutesToInputValue(form.endMin)}
+                onChange={(e) => {
+                  const m = inputValueToMinutes(e.target.value);
+                  if (m !== null) patch({ endMin: m });
+                }}
+                className="rounded-md bg-surface-background px-3 py-2 text-base text-text-primary tabular-nums outline-none focus:ring-2 focus:ring-accent-primary"
+              />
+            </label>
           </div>
-        </div>
-        <p className="text-xs text-text-tertiary">{STRINGS.editor.alarmCaveat}</p>
-        {showIosHint && !iosHintDismissed && (
-          <div className="flex items-start gap-2 rounded-md bg-surface-background p-2.5">
-            <p className="min-w-0 flex-1 text-xs text-text-secondary">
-              {STRINGS.editor.installHint}
+          {!timeValid && (
+            <p role="alert" className="px-1 text-xs text-accent-danger">
+              {STRINGS.editor.timeOrderHint}
             </p>
-            <button
-              type="button"
-              aria-label={STRINGS.editor.dismissHint}
-              onClick={dismissIosHint}
-              className="shrink-0 px-1 text-xs text-text-tertiary"
-            >
-              ✕
-            </button>
+          )}
+        </section>
+
+        {/* 소요시간 pill 선택기 — 탭 = endMin 재설정(일 경계 클램프) */}
+        <section className="flex flex-col gap-2">
+          <h3 className="px-1 text-lg font-bold text-text-primary">
+            {STRINGS.editor.durationSection}
+          </h3>
+          <div className="flex gap-1 overflow-x-auto rounded-full bg-surface-card p-1.5 shadow-sm">
+            {DURATION_PRESETS.map((d) => {
+              const active = timeValid && form.endMin - form.startMin === d;
+              return (
+                <button
+                  key={d}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() =>
+                    patch({ endMin: Math.min(form.startMin + d, DAY_MINUTES) })
+                  }
+                  className={`shrink-0 rounded-full px-3.5 py-1.5 text-sm whitespace-nowrap transition-colors duration-(--duration-fast) ${
+                    active
+                      ? 'bg-accent-primary font-semibold text-text-on-solid'
+                      : 'text-text-secondary active:bg-surface-background'
+                  }`}
+                >
+                  {STRINGS.duration(d)}
+                </button>
+              );
+            })}
           </div>
+        </section>
+
+        {/* 알림 카드 — 토글 + 켜짐 시 오프셋 select + 정직한 한계 안내(§7) */}
+        <div className="flex flex-col gap-2 rounded-lg bg-surface-card p-3.5 shadow-sm">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-base text-text-primary">{STRINGS.editor.alarmLabel}</span>
+            <div className="flex items-center gap-2">
+              {form.alarmOn && (
+                <select
+                  aria-label={STRINGS.editor.alarmLabel}
+                  value={form.alarmOffset}
+                  onChange={(e) => patch({ alarmOffset: Number(e.target.value) as AlarmOffset })}
+                  className="rounded-md bg-surface-background px-2 py-1.5 text-sm text-text-primary outline-none focus:ring-2 focus:ring-accent-primary"
+                >
+                  {ALARM_OFFSETS.map((offset) => (
+                    <option key={offset} value={offset}>
+                      {STRINGS.editor.alarmOffsets[offset]}
+                    </option>
+                  ))}
+                </select>
+              )}
+              <button
+                type="button"
+                role="switch"
+                aria-checked={form.alarmOn}
+                aria-label={STRINGS.editor.alarmLabel}
+                onClick={handleAlarmToggle}
+                className={`h-7 w-12 shrink-0 rounded-full p-0.5 transition-colors duration-(--duration-fast) ${
+                  form.alarmOn ? 'bg-accent-primary' : 'bg-surface-timeline-line'
+                }`}
+              >
+                <span
+                  className={`block size-6 rounded-full bg-surface-card shadow-sm transition-transform duration-(--duration-fast) ${
+                    form.alarmOn ? 'translate-x-5' : ''
+                  }`}
+                />
+              </button>
+            </div>
+          </div>
+          <p className="text-xs text-text-tertiary">{STRINGS.editor.alarmCaveat}</p>
+          {showIosHint && !iosHintDismissed && (
+            <div className="flex items-start gap-2 rounded-md bg-surface-background p-2.5">
+              <p className="min-w-0 flex-1 text-xs text-text-secondary">
+                {STRINGS.editor.installHint}
+              </p>
+              <button
+                type="button"
+                aria-label={STRINGS.editor.dismissHint}
+                onClick={dismissIosHint}
+                className="shrink-0 px-1 text-xs text-text-tertiary"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* 메모 카드 */}
+        <textarea
+          rows={3}
+          value={form.note}
+          onChange={(e) => patch({ note: e.target.value })}
+          placeholder={STRINGS.editor.notePlaceholder}
+          className="w-full resize-none rounded-lg bg-surface-card px-3.5 py-3 text-base text-text-primary shadow-sm outline-none placeholder:text-text-tertiary focus:ring-2 focus:ring-accent-primary"
+        />
+
+        {/* 삭제 (edit 모드만) — 탭-어게인 확인 */}
+        {isEdit && (
+          <button
+            type="button"
+            onClick={handleDelete}
+            className={`w-full rounded-lg py-3 text-base font-medium text-accent-danger transition-colors duration-(--duration-fast) ${
+              deleteArmed ? 'bg-surface-card shadow-sm' : 'active:bg-surface-card'
+            }`}
+          >
+            {deleteArmed ? STRINGS.editor.deleteConfirm : STRINGS.editor.delete}
+          </button>
         )}
-      </div>
 
-      {/* 6. 메모 */}
-      <textarea
-        rows={3}
-        value={form.note}
-        onChange={(e) => patch({ note: e.target.value })}
-        placeholder={STRINGS.editor.notePlaceholder}
-        className="w-full resize-none rounded-md bg-surface-background px-3 py-2.5 text-base text-text-primary outline-none placeholder:text-text-tertiary focus:ring-2 focus:ring-accent-primary"
-      />
-
-      {/* 7. 삭제 (edit 모드만) — 하단 분리, 탭-어게인 확인 */}
-      {isEdit && (
+        {/* 하단 대형 저장 pill (Structured '계속' 위치) */}
         <button
           type="button"
-          onClick={handleDelete}
-          className={`mt-2 w-full rounded-md py-3 text-base font-medium text-accent-danger transition-colors duration-(--duration-fast) ${
-            deleteArmed ? 'bg-surface-background' : 'active:bg-surface-background'
-          }`}
+          onClick={handleSave}
+          disabled={!timeValid}
+          className="w-full rounded-full bg-accent-primary py-3.5 text-base font-semibold text-text-on-solid shadow-sm transition-opacity duration-(--duration-fast) disabled:opacity-40 active:opacity-85"
         >
-          {deleteArmed ? STRINGS.editor.deleteConfirm : STRINGS.editor.delete}
+          {STRINGS.editor.save}
         </button>
-      )}
+      </div>
     </div>
   );
 }

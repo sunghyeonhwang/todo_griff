@@ -44,6 +44,12 @@ export const STRINGS = {
     notePlaceholder: '메모',
     delete: '삭제',
     deleteConfirm: '한 번 더 탭하면 삭제',
+    close: '닫기',
+    timeSection: '시간',
+    durationSection: '소요시간',
+    /** 컬러 밴드 시간 요약 — 예: '10:00 ~ 10:15 (15분)' (§5) */
+    timeSummary: (start: string, end: string, duration: string) =>
+      `${start} ~ ${end} (${duration})`,
   },
 
   card: {
@@ -57,6 +63,18 @@ export const STRINGS = {
   alarm: {
     /** OS 알림·인앱 토스트 본문 — 예: '09:00 시작' (§7) */
     startsAt: (time: string) => `${time} 시작`,
+  },
+
+  /** 주간 스트립 요일 글자 — 월요일 시작(time.ts weekDateKeys와 순서 일치, §6.5) */
+  weekdays: ['월', '화', '수', '목', '금', '토', '일'],
+
+  /** 소요시간 라벨 — 예: '1시간 45분' / '45분' / '2시간' (§4.8 카드 캡션) */
+  duration: (min: number) => {
+    const h = Math.floor(min / 60);
+    const m = min % 60;
+    if (h === 0) return `${m}분`;
+    if (m === 0) return `${h}시간`;
+    return `${h}시간 ${m}분`;
   },
 
   colors: {

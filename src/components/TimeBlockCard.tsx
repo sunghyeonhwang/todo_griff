@@ -165,25 +165,37 @@ export default function TimeBlockCard({
           done ? 'bg-(--blk-bg)/40' : 'bg-(--blk-bg)'
         } ${isDragging ? 'shadow-lg' : done ? 'shadow-none' : 'shadow-block'}`}
       >
-        {/* 좌측 3px 라운드 액센트 바(§4.8) */}
-        <span aria-hidden className="absolute top-1 bottom-1 left-1 w-[3px] rounded-full bg-(--blk-solid)" />
-        {/* 내용 행: 이모지(16px) + 한 줄 말줄임 제목 + 우측 체크박스 — 행 높이 24px = 최소 블록 */}
-        <div className="flex h-6 items-center gap-1.5 pr-1.5 pl-3">
+        {/* 내용(§4.8, Structured 정체성): 원형 이모지 배지(색 링) + 제목/캡션 스택 + 우측 체크박스.
+            콤팩트(<25분, 24px 행)는 배지 축소 + 단일 행. */}
+        <div
+          className={`flex gap-2 pr-1.5 ${
+            showCaption ? 'items-start pt-1.5 pl-2' : 'h-6 items-center pl-1'
+          }`}
+        >
           <span
             aria-hidden
-            className={`text-[16px] leading-none transition-opacity duration-(--duration-fast) ${
-              done ? 'opacity-50' : ''
-            }`}
+            className={`flex shrink-0 items-center justify-center rounded-full bg-surface-card leading-none shadow-sm ring-2 ring-(--blk-solid) transition-opacity duration-(--duration-fast) ${
+              showCaption ? 'size-7 text-[15px]' : 'size-5 text-[11px]'
+            } ${done ? 'opacity-50' : ''}`}
           >
             {block.emoji}
           </span>
-          <span
-            className={`min-w-0 flex-1 truncate text-sm font-semibold transition-colors duration-(--duration-fast) ${
-              done ? 'text-text-tertiary line-through' : 'text-(--blk-fg)'
-            }`}
-          >
-            {block.title}
-          </span>
+          <div className="min-w-0 flex-1">
+            <div
+              className={`truncate text-sm font-semibold transition-colors duration-(--duration-fast) ${
+                done ? 'text-text-tertiary line-through' : 'text-(--blk-fg)'
+              }`}
+            >
+              {block.title}
+            </div>
+            {/* 시간 캡션: 범위 · 소요시간 — 예: "12:45 – 14:30 · 1시간 45분" */}
+            {showCaption && (
+              <div className="truncate text-xs tabular-nums text-(--blk-fg) opacity-70">
+                {formatMinutes(startMin)} – {formatMinutes(endMin)} ·{' '}
+                {STRINGS.duration(endMin - startMin)}
+              </div>
+            )}
+          </div>
           {/* 체크박스(§4.9): 24px 원, 히트영역 44×44(after -inset-2.5 = 24+2×10px, Apple HIG).
               즉시 커밋 — 명시적 저장 원칙의 유일한 예외. 에디터 안 열림(stopPropagation). */}
           <button
@@ -213,11 +225,6 @@ export default function TimeBlockCard({
             </svg>
           </button>
         </div>
-        {showCaption && (
-          <div className="pl-3 text-xs tabular-nums text-(--blk-fg) opacity-70">
-            {formatMinutes(startMin)} – {formatMinutes(endMin)}
-          </div>
-        )}
       </div>
       {/* 이동 중 시간 배지(§4.3) — 카드 좌상단 바깥, 카드와 함께 transform */}
       {isDragging && (
