@@ -257,13 +257,15 @@ function EditorForm({ editor }: { editor: OpenEditor }) {
   return (
     // BottomSheet의 px-4·pb-safe를 -m로 상쇄 — 밴드/본문이 시트 전폭·전고를 차지(§5)
     <div className="-mx-4 -mb-[calc(env(safe-area-inset-bottom)+8px)] flex flex-col">
-      {/* ── 컬러 헤더 밴드(--blk-solid): X · 배지 · 시간 요약 + 밑줄 제목 · (edit) 완료 원 ── */}
+      {/* ── 컬러 헤더 밴드(--blk-solid): X · 배지 · 시간 요약 + 밑줄 제목 · (edit) 완료 원 ──
+          밴드 위 컨트롤(X·완료 원·포커스 밑줄)은 테마 무관 흰 계열(rgba/white)로 고정 —
+          surface-card를 쓰면 다크에서 검은 원이 떠 보인다(§5, 2026-07-10 수정). */}
       <div data-color={form.color} className="bg-(--blk-solid) px-4 pt-1 pb-6">
         <button
           type="button"
           aria-label={STRINGS.editor.close}
           onClick={closeEditor}
-          className="flex size-9 items-center justify-center rounded-full bg-surface-card text-text-primary shadow-sm active:scale-95"
+          className="flex size-9 items-center justify-center rounded-full bg-[rgba(255,255,255,0.25)] text-text-on-solid active:scale-95"
         >
           <svg
             aria-hidden
@@ -295,7 +297,7 @@ function EditorForm({ editor }: { editor: OpenEditor }) {
               onChange={(e) => patch({ title: e.target.value })}
               placeholder={STRINGS.editor.titlePlaceholder}
               autoFocus={editor.mode === 'create'}
-              className="w-full border-b-2 border-[rgba(255,255,255,0.5)] bg-transparent pb-1 text-xl font-semibold text-text-on-solid outline-none placeholder:text-text-on-solid/60 focus:border-surface-card"
+              className="w-full border-b-2 border-[rgba(255,255,255,0.5)] bg-transparent pb-1 text-xl font-semibold text-text-on-solid outline-none placeholder:text-text-on-solid/60 focus:border-white"
             />
           </div>
           {isEdit && (
@@ -304,8 +306,8 @@ function EditorForm({ editor }: { editor: OpenEditor }) {
               aria-label={STRINGS.card.completeLabel}
               aria-pressed={form.completed}
               onClick={() => patch({ completed: !form.completed })}
-              className={`flex size-8 shrink-0 items-center justify-center rounded-full border-2 border-surface-card transition-colors duration-(--duration-fast) ${
-                form.completed ? 'bg-surface-card text-(--blk-solid)' : 'text-transparent'
+              className={`flex size-8 shrink-0 items-center justify-center rounded-full border-2 border-[rgba(255,255,255,0.7)] transition-colors duration-(--duration-fast) ${
+                form.completed ? 'bg-white text-(--blk-solid)' : 'text-transparent'
               }`}
             >
               <svg
