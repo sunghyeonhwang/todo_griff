@@ -30,6 +30,8 @@ import type { TimeBlock } from '../types';
 //   401 → authStore.expire()(아웃박스 보존, 재로그인 유도).
 
 const FLUSH_TICK_MS = 30_000; // 주기 플러시(§14.7)
+const BACKOFF_BASE_MS = 30_000; // 지수 백오프 시작(재시도성 실패 1회 후)
+const BACKOFF_MAX_MS = 10 * 60_000; // 백오프 상한 10분(§14.7)
 
 /** 아웃박스 작업 — queTaskId+kind로 코얼레스(같은 블록의 연속 변경은 마지막만, §14.7). */
 type OutboxOp =
@@ -91,7 +93,9 @@ export const useQueSyncStore = create<QueSyncState & QueSyncActions>()(
       },
 
       refresh: () => {
+        resetBackoff(); // 수동 새로고침 = 즉시 재시도(§14.7)
         void pull();
+        void flush();
       },
     }),
     {
@@ -116,6 +120,10 @@ let started = false;
 let ready = false; // 하이드레이션 이후에만 라이트백 감지(그 전엔 baseline만)
 let applyingRemote = false; // 풀 적용 중 — 라이트백 에코 차단(§14.6)
 let prevBlocks: Record<string, TimeBlock> = {};
+// 지수 백오프(§14.7) — 재시도성 실패(네트워크·5xx·429)가 연속되면 주기 틱 재시도를 늦춘다.
+// 서버를 두들기지 않기 위한 것이므로, 사용자 명시 행동(수동 새로고침·online·재로그인)은 리셋한다.
+let retryFailCount = 0;
+let nextRetryAt = 0; // epoch ms — 이 시각 전의 주기 틱 플러시는 건너뛴다
 
 // ---------- 아웃박스 헬퍼 ----------
 
@@ -205,6 +213,14 @@ function onBlocksChanged(state: { blocks: Record<string, TimeBlock> }): void {
       touched.push(id);
     }
   }
+  // 연동 블록의 로컬 삭제 — 삭제는 write-back 대상이 아니므로(§14.0) 잔여 op를 폐기한다.
+  // 안 하면 삭제된 블록의 마지막 move/status가 다음 플러시에 Que로 발사된다.
+  for (const id in prevBlocks) {
+    if (next[id] || !prevBlocks[id].queTaskId) continue;
+    for (const [key, op] of Object.entries(useQueSyncStore.getState().outbox)) {
+      if (op.blockId === id) removeOp(key);
+    }
+  }
   prevBlocks = next;
   if (touched.length > 0) scheduleFlush(touched);
 }
@@ -224,14 +240,18 @@ async function pull(): Promise<void> {
   }
 
   const inbox: QueTask[] = [];
+  let unlinked = 0;
   applyingRemote = true;
   try {
     const blocks = useBlocksStore.getState().blocks;
     const linkedByTask = new Map<string, TimeBlock>();
     for (const b of Object.values(blocks)) if (b.queTaskId) linkedByTask.set(b.queTaskId, b);
+    // 원격에 살아 있는 태스크 id — 취소/병합은 능동 목록에서 빠지므로 '소실'과 동일 취급(§14.7).
+    const alive = new Set<string>();
 
     for (const task of tasks) {
       if (task.status === 'cancelled' || task.status === 'merged') continue; // 능동 화면에서 숨김(§14.2)
+      alive.add(task.id);
       const mapped = mapTimedTask(task);
       if (!mapped) {
         // 무시간 미완료 → 인박스. 단 이미 타임라인에 배치된(연동 블록 존재) 태스크는
@@ -263,12 +283,26 @@ async function pull(): Promise<void> {
         if (Object.keys(patch).length > 0) useBlocksStore.getState().updateBlock(existing.id, patch);
       }
     }
+
+    // 원격 소실 처리(§14.7) — Que에서 삭제·취소·병합·재배정돼 응답에 없는 태스크의 연동 블록은
+    // 지우지 않고 **링크만 해제해 로컬 전용 블록으로 강등**한다(로컬 우선·비파괴 §14.1).
+    // 잔여 아웃박스 op도 폐기 — 대상이 사라졌으니 flush해 봐야 404 error만 남긴다.
+    // pull이 성공한(응답을 받은) 경로에서만 실행된다 — 오프라인/실패 시엔 여기 도달하지 않는다.
+    for (const [taskId, block] of linkedByTask) {
+      if (alive.has(taskId)) continue;
+      useBlocksStore.getState().updateBlock(block.id, { queTaskId: undefined, syncState: undefined });
+      for (const [key, op] of Object.entries(useQueSyncStore.getState().outbox)) {
+        if (op.blockId === block.id) removeOp(key);
+      }
+      unlinked += 1;
+    }
   } finally {
     applyingRemote = false;
     prevBlocks = useBlocksStore.getState().blocks; // 원격 적용분을 baseline에 반영(재에코 방지)
   }
 
   setInbox(inbox);
+  if (unlinked > 0) useUiStore.getState().showToast(STRINGS.que.toast.unlinked(unlinked));
 }
 
 // ---------- 플러시(§14.6·§14.7) ----------
@@ -282,9 +316,16 @@ async function flush(): Promise<void> {
 
   useQueSyncStore.setState({ syncing: true });
   let sawError = false;
+  let sawRetryable = false;
   try {
     for (const op of ops) {
       const key = opKey(op);
+      // 로컬에서 이미 삭제된 블록의 잔여 op는 발사하지 않는다(삭제는 write-back 대상이 아님 §14.0).
+      // onBlocksChanged의 삭제 정리와 이중 안전 — persist 경합 등으로 남았어도 여기서 소거된다.
+      if (!useBlocksStore.getState().blocks[op.blockId]) {
+        removeOp(key);
+        continue;
+      }
       try {
         if (op.kind === 'move') await moveTask(op.queTaskId, op.startAt, op.endAt);
         else await setTaskStatus(op.queTaskId, op.to);
@@ -299,24 +340,42 @@ async function flush(): Promise<void> {
           removeOp(key); // 403/404/409/422 — 재시도 안 함, 사용자 개입(§14.7)
           setSyncState(op.blockId, 'error');
           sawError = true;
+        } else {
+          sawRetryable = true; // 네트워크·5xx·429: 아웃박스 유지, pending 유지 → 백오프 후 재시도
         }
-        // 재시도성(네트워크·5xx·429): 아웃박스 유지, pending 유지 → 다음 틱 재시도
       }
     }
   } finally {
     useQueSyncStore.setState({ syncing: false });
+    // 지수 백오프(§14.7): 재시도성 실패가 있으면 다음 주기-틱 재시도를 늦춘다(30s·1m·2m…10m 상한).
+    if (sawRetryable) {
+      retryFailCount += 1;
+      nextRetryAt =
+        Date.now() + Math.min(BACKOFF_BASE_MS * 2 ** (retryFailCount - 1), BACKOFF_MAX_MS);
+    } else {
+      retryFailCount = 0;
+      nextRetryAt = 0;
+    }
   }
   if (sawError) useUiStore.getState().showToast(STRINGS.que.toast.syncFailed);
+}
+
+/** 백오프 리셋 — 사용자 명시 행동(수동 새로고침·online 복귀·재로그인)은 즉시 재시도한다. */
+function resetBackoff(): void {
+  retryFailCount = 0;
+  nextRetryAt = 0;
 }
 
 // ---------- 부팅/트리거 ----------
 
 async function initialSync(): Promise<void> {
+  resetBackoff(); // 앱 시작·재로그인 = 즉시 시도(§14.7)
   await pull();
   await flush();
 }
 
 function onOnline(): void {
+  resetBackoff(); // 네트워크 복귀 = 즉시 재시도(§14.7)
   void pull();
   void flush();
 }
@@ -349,7 +408,11 @@ export function startQueSync(): void {
     ready = true;
     void initialSync();
     window.addEventListener('online', onOnline);
-    window.setInterval(() => void flush(), FLUSH_TICK_MS);
+    // 주기 틱 — 백오프 창(nextRetryAt) 안에서는 건너뛴다(§14.7 지수 백오프).
+    window.setInterval(() => {
+      if (Date.now() < nextRetryAt) return;
+      void flush();
+    }, FLUSH_TICK_MS);
   };
 
   let remaining = 3;

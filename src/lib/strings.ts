@@ -150,6 +150,9 @@ export const STRINGS = {
       disconnected: 'Que에서 로그아웃했어요',
       sessionExpired: 'Que 세션이 만료됐어요. 다시 연결해 주세요',
       syncFailed: 'Que 동기화에 실패한 항목이 있어요',
+      /** 원격 소실(삭제·취소·재배정) → 연동 해제·로컬 보존 안내(§14.7). */
+      unlinked: (n: number) =>
+        `Que에서 사라진 할 일 ${n}개를 로컬 일정으로 남겨뒀어요`,
       placed: 'Que 할 일을 타임라인에 배치했어요',
     },
   },

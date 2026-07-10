@@ -138,7 +138,12 @@ export async function getMyTasks(assigneeId: string): Promise<QueTask[]> {
     undefined,
     { auth: true },
   );
-  return Array.isArray(data.tasks) ? data.tasks : [];
+  // 기형 200(tasks 필드 부재/비배열)은 []로 강등하지 않고 throw — 조용히 빈 목록을 돌려주면
+  // 원격 소실 처리(§14.7)가 전 연동 블록을 일괄 해제해 버린다. retryable(5xx급)로 백오프 재시도.
+  if (!Array.isArray(data.tasks)) {
+    throw new QueApiError(500, STRINGS.que.error.generic, 'MALFORMED_RESPONSE');
+  }
+  return data.tasks;
 }
 
 /** 상태 변경 — 완료 토글 라이트백(§14.4). issue/on_hold(사유 필수)는 만들지 않는다. */
