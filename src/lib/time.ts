@@ -117,3 +117,23 @@ export function weekDateKeys(key: string): string[] {
 export function dayOfMonth(key: string): number {
   return Number(key.slice(8));
 }
+
+// ---------- 분기(quarter) 유틸 — OKR(§15) ----------
+
+/** Date → 분기 키 'YYYY-Qn' (예: '2026-Q3'). OKR의 기간 단위. */
+export function quarterKey(d: Date): string {
+  return `${d.getFullYear()}-Q${Math.floor(d.getMonth() / 3) + 1}`;
+}
+
+/** 분기 키 ±delta 이동 — '2026-Q1' -1 → '2025-Q4'. */
+export function shiftQuarter(key: string, delta: 1 | -1): string {
+  const y = Number(key.slice(0, 4));
+  const q = Number(key.slice(6));
+  const n = y * 4 + (q - 1) + delta;
+  return `${Math.floor(n / 4)}-Q${(n % 4) + 1}`;
+}
+
+/** 분기 키 → 표시 라벨 '2026년 3분기'. */
+export function quarterLabel(key: string): string {
+  return `${key.slice(0, 4)}년 ${key.slice(6)}분기`;
+}

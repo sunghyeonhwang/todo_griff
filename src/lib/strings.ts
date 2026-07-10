@@ -76,6 +76,49 @@ export const STRINGS = {
     emptyDay: '계획이 없어요 ✨',   // 빈 날 힌트(§6.5) — 09:00–11:00 밴드
   },
 
+  /** 하단 탭 라벨(§6.5) */
+  tabs: {
+    navLabel: '주 화면',
+    today: '오늘',
+    okr: '목표',
+  },
+
+  // OKR — DESIGN.md §15 (컴포넌트 하드코딩 금지, 규칙5)
+  okr: {
+    prevQuarter: '이전 분기',
+    nextQuarter: '다음 분기',
+    addObjective: '목표 추가',
+    addKeyResult: '핵심 결과 추가',
+    defaultObjectiveTitle: '새 목표',
+    defaultKrTitle: '새 핵심 결과',
+    editObjective: '목표 편집',
+    editKr: '핵심 결과 편집',
+    objectiveTitleLabel: '목표 (이번 분기에 이루고 싶은 방향)',
+    objectiveTitlePlaceholder: '예: 신규 매출 확대',
+    krTitleLabel: '핵심 결과 (숫자로 잴 수 있는 것)',
+    krTitlePlaceholder: '예: 신규 계약',
+    krTargetLabel: '목표 수치',
+    krCurrentLabel: '현재 수치',
+    krUnitLabel: '단위',
+    krUnitPlaceholder: '건 / % / 시간',
+    krTargetHint: '목표 수치는 0보다 커야 해요',
+    increment: '진척 +1',
+    decrement: '진척 -1',
+    progressLabel: (pct: number) => `진행률 ${pct}%`,
+    delete: '삭제',
+    deleteConfirm: '한 번 더 탭하면 삭제',
+    save: '저장',
+    // 교육형 빈 상태(첫 사용 가이드 — 로드맵 E-F 요건): 왜 → 무엇 → 어떻게 → 예시
+    emptyTitle: '아직 등록된 목표가 없어요',
+    emptyWhy:
+      'OKR은 분기 동안 무엇을 이루고 싶은지(목표)와 그것을 숫자로 어떻게 잴지(핵심 결과)를 적어두는 방법이에요. 바쁜 하루 속에서도 방향을 잃지 않게 도와줍니다.',
+    emptyWhat:
+      '목표(O)는 방향을 담은 한 문장, 핵심 결과(KR)는 그 목표가 이뤄지고 있는지 재는 숫자예요.',
+    emptyHow:
+      "아래 '목표 추가'를 눌러 이번 분기 목표를 적고, 목표마다 핵심 결과를 1~3개 달아 보세요. 진척이 생길 때마다 + 버튼으로 숫자를 올리면 진행률이 채워집니다.",
+    emptyExample: '예시: 목표 "신규 매출 확대" · 핵심 결과 "신규 계약 6건" · "리드 40건"',
+  },
+
   alarm: {
     /** OS 알림·인앱 토스트 본문 — 예: '09:00 시작' (§7) */
     startsAt: (time: string) => `${time} 시작`,

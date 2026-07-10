@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { EditorState } from '../types';
+import type { AppTab, EditorState } from '../types';
 import { shiftDateKey, toDateKey } from '../lib/time';
 
 // 휘발 UI 상태 — DESIGN.md §3.2 (persist 없음)
@@ -8,6 +8,7 @@ import { shiftDateKey, toDateKey } from '../lib/time';
 
 interface UiState {
   activeDateKey: string;               // 초기값 오늘
+  activeTab: AppTab;                   // 하단 탭(§6.5) — 앱 시작은 항상 '오늘'(휘발)
   editor: EditorState;
   selectedBlockId: string | null;      // 터치에서 리사이즈 핸들 노출 게이트
   notifPermission: NotificationPermission | 'unsupported';
@@ -15,6 +16,7 @@ interface UiState {
 }
 
 interface UiActions {
+  setTab(tab: AppTab): void;
   goToDate(key: string): void;
   goRelative(delta: 1 | -1): void;
   goToToday(): void;
@@ -35,11 +37,13 @@ function initialNotifPermission(): NotificationPermission | 'unsupported' {
 
 export const useUiStore = create<UiState & UiActions>()((set) => ({
   activeDateKey: toDateKey(new Date()),
+  activeTab: 'today',
   editor: { mode: 'closed' },
   selectedBlockId: null,
   notifPermission: initialNotifPermission(),
   toast: null,
 
+  setTab: (tab) => set({ activeTab: tab }),
   goToDate: (key) => set({ activeDateKey: key }),
   goRelative: (delta) =>
     set((s) => ({ activeDateKey: shiftDateKey(s.activeDateKey, delta) })),

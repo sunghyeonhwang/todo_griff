@@ -35,3 +35,29 @@ export type EditorState =
   | { mode: 'closed' }
   | { mode: 'create'; draft: { dateKey: string; startMin: number; endMin: number } }
   | { mode: 'edit'; blockId: string };
+
+/** 하단 탭(§6.5) — 오늘(타임라인) | 목표(OKR §15). */
+export type AppTab = 'today' | 'okr';
+
+// ---------- OKR — DESIGN.md §15 (앱 로컬 전용, Que 무관) ----------
+
+/** 분기 목표(Objective). quarter='YYYY-Qn'(lib/time quarterKey). */
+export interface Objective {
+  id: string;        // crypto.randomUUID()
+  quarter: string;   // 소속 분기 키 (예: '2026-Q3')
+  title: string;     // 빈 값이면 스토어가 '새 목표'로 대체
+  createdAt: number; // epoch ms
+  updatedAt: number;
+}
+
+/** 핵심 결과(Key Result) — 목표를 측정하는 숫자. 진행률 = clamp(current/target, 0..1). */
+export interface KeyResult {
+  id: string;
+  objectiveId: string; // 소속 Objective (삭제 시 연쇄 삭제)
+  title: string;       // 빈 값이면 '새 핵심 결과'
+  target: number;      // 목표 수치 (> 0)
+  current: number;     // 현재 수치 (0 이상, target 초과 허용 — 표시는 100%로 클램프)
+  unit: string;        // 단위 라벨 (예: '건', '%', '시간' — 빈 값 허용)
+  createdAt: number;
+  updatedAt: number;
+}
