@@ -15,6 +15,7 @@ import googleIcon from '../brand/google.svg';
 // - **Google 로그인은 미구현**: 버튼만 노출하고 누르면 "준비 중" 토스트(구글 auth는 후속).
 export default function LoginScreen() {
   const login = useAuthStore((s) => s.login);
+  const trySso = useAuthStore((s) => s.trySso);
   const dismiss = useAuthStore((s) => s.dismiss);
   const clearError = useAuthStore((s) => s.clearError);
   const pending = useAuthStore((s) => s.pending);
@@ -96,6 +97,16 @@ export default function LoginScreen() {
           className="h-12 w-full rounded-lg bg-[#4285f4] text-base font-semibold text-white transition-opacity duration-(--duration-fast) disabled:opacity-40 active:opacity-90"
         >
           {pending ? STRINGS.que.login.submitting : STRINGS.que.login.submit}
+        </button>
+
+        {/* que.griff.co.kr 세션으로 자동 연결(수동 트리거) — 재입력 없이 브라우저 세션 재사용(§14.8). */}
+        <button
+          type="button"
+          onClick={() => void trySso(true)}
+          disabled={pending}
+          className="h-12 w-full rounded-lg border border-white/30 text-base font-medium text-white transition-opacity duration-(--duration-fast) disabled:opacity-40 active:bg-white/5"
+        >
+          {pending ? STRINGS.que.sso.connecting : STRINGS.que.sso.button}
         </button>
 
         <button

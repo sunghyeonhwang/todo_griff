@@ -131,6 +131,38 @@ export async function login(email: string, password: string): Promise<{ token: s
   );
 }
 
+/** 응답 user 형태 가드(SSO 기형 200 방어). */
+function isQueUser(v: unknown): v is QueUser {
+  if (typeof v !== 'object' || v === null) return false;
+  const u = v as Record<string, unknown>;
+  return typeof u.id === 'string' && typeof u.name === 'string' && typeof u.role === 'string';
+}
+
+/**
+ * SSO — que.griff.co.kr에 이미 로그인된 브라우저 세션 쿠키로 PAT를 조용히 받아온다(§14.8 확장).
+ * 이 표면만 예외적으로 쿠키 기반(`credentials:'include'`)이며 Bearer/X-Que-Via를 붙이지 않는다
+ * (커스텀 헤더 없이 simple request로 유지 — 계약: `GET /api/auth/sso`, `{credentials:'include'}`).
+ * silent 시도이므로 미로그인(401)·비200·기형·네트워크 오류는 모두 **throw 없이 null**로 강등한다.
+ */
+export async function ssoLogin(): Promise<{ token: string; user: QueUser } | null> {
+  let res: Response;
+  try {
+    res = await fetch(`${QUE_BASE}/api/auth/sso`, { method: 'GET', credentials: 'include' });
+  } catch {
+    return null; // 네트워크 도달 실패 — 조용히 무시(로그인 화면 플로우 유지)
+  }
+  if (!res.ok) return null; // 401(미로그인) 포함 비200 — 조용히 무시
+  try {
+    const body = (await res.json()) as { token?: unknown; user?: unknown };
+    if (typeof body.token === 'string' && body.token !== '' && isQueUser(body.user)) {
+      return { token: body.token, user: body.user };
+    }
+  } catch {
+    // 비 JSON / 기형 응답 — 무시
+  }
+  return null;
+}
+
 /** 내 작업 전체 — 인박스 + 모든 날짜의 정본 풀 소스(§14.2, my-day는 무시간 태스크를 뺌). */
 export async function getMyTasks(assigneeId: string): Promise<QueTask[]> {
   const data = await request<{ tasks?: QueTask[] }>(

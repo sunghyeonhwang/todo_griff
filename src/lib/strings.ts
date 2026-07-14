@@ -167,6 +167,11 @@ export const STRINGS = {
       later: '나중에',
       genericError: '이메일 또는 비밀번호를 확인해 주세요',
     },
+    sso: {
+      button: 'Que 세션으로 연결', // que.griff.co.kr 로그인 세션으로 자동 연결(수동 트리거)
+      connecting: '세션 확인 중…', // 부팅 silent SSO 진행 게이트 + 버튼 진행 상태
+      notFound: 'Que 세션을 찾지 못했어요. 로그인해 주세요', // 수동 SSO 실패 시에만 안내(silent 부팅은 무음)
+    },
     inbox: {
       title: 'Que 할 일',
       count: (n: number) => `Que 할 일 ${n}`,

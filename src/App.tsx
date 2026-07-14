@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import AddFab from './components/AddFab';
 import BlockEditor from './components/BlockEditor';
 import DateHeader from './components/DateHeader';
@@ -8,6 +8,7 @@ import QueInbox from './components/QueInbox';
 import TabBar from './components/TabBar';
 import Timeline, { type TimelineHandle } from './components/Timeline';
 import Toast from './components/Toast';
+import { STRINGS } from './lib/strings';
 import { useAuthStore } from './store/authStore';
 import { useUiStore } from './store/uiStore';
 
@@ -26,6 +27,37 @@ export default function App() {
   // Que 미연결(anon) + "나중에" 미선택이면 셸 대신 로그인 노출(§14.8). Toast는 병행 마운트
   // (부팅 시 safeStorage 손상 안내 등이 유실되지 않게).
   const showLogin = useAuthStore((s) => s.status === 'anon' && !s.dismissed);
+
+  // 부팅 silent SSO(§14.8 확장): 로그인 화면을 그릴 상황이면 que.griff.co.kr 세션으로 1회 자동
+  // 연결을 시도한다(스토어 ssoAttempted 가드가 중복 방지). 시도가 끝나기 전까지는 로그인 폼 대신
+  // 최소 게이트를 보여 성공 시의 폼 깜빡임을 막는다. 실패/미로그인이면 게이트를 닫고 로그인 화면으로.
+  // dismissed(나중에/로그아웃) 사용자는 자동 시도하지 않고 수동 버튼으로만 재연결한다.
+  const [ssoBooting, setSsoBooting] = useState(() => {
+    const s = useAuthStore.getState();
+    return s.status === 'anon' && !s.dismissed && !s.ssoAttempted;
+  });
+  useEffect(() => {
+    if (!ssoBooting) return;
+    void useAuthStore
+      .getState()
+      .trySso()
+      .finally(() => setSsoBooting(false));
+  }, [ssoBooting]);
+
+  if (ssoBooting && showLogin) {
+    return (
+      <>
+        <div className="flex h-dvh flex-col items-center justify-center gap-4 bg-[#1a1c1e]">
+          <span
+            aria-hidden
+            className="size-6 animate-spin rounded-full border-2 border-white/25 border-t-white"
+          />
+          <p className="text-sm font-medium text-white/70">{STRINGS.que.sso.connecting}</p>
+        </div>
+        <Toast />
+      </>
+    );
+  }
 
   if (showLogin) {
     return (
