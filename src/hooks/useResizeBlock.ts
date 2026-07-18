@@ -22,9 +22,9 @@ import { useEdgeAutoScroll } from './useEdgeAutoScroll';
 //   pointercancel·회전(§4.10-4·5) → 프리뷰 조용히 폐기, 스토어 무변경
 //   두 번째 포인터(§4.10-6)     → 무시 (단일 pointerId만 추적)
 //
-// - 엣지(포인터 지점)는 15분 스냅(GESTURE_SNAP), 반대편 고정:
-//   위 핸들 newStart = clamp(edge, 0, end-15) / 아래 핸들 newEnd = clamp(edge, start+15, 1440)
-//   — 반대편을 넘어가면 최소 15분에서 클램프, 반전·이동 전환 없음(§4.10-2).
+// - 엣지(포인터 지점)는 10분 스냅(GESTURE_SNAP, §4.1 개정), 반대편 고정:
+//   위 핸들 newStart = clamp(edge, 0, end-MIN_DURATION) / 아래 핸들 newEnd = clamp(edge, start+MIN_DURATION, 1440)
+//   — 반대편을 넘어가면 최소 MIN_DURATION(20분)에서 클램프, 반전·이동 전환 없음(§4.10-2).
 // - 프리뷰는 훅 로컬 상태(§3.2) — resizeBlock 커밋은 pointer-up의 1회뿐(§3.1).
 //   탭(무이동)으로 끝나면 스토어 무변경.
 // - rect는 pointerdown 1회 캐시 + scrollTop은 move마다 라이브(§4.1), move는 rAF 배칭.
@@ -73,7 +73,7 @@ export function useResizeBlock(
   const autoScroll = useEdgeAutoScroll(scrollerRef);
 
   const api = useMemo(() => {
-    /** 엣지 후보(15분 스냅) → 반대편 고정 + 최소 15분 + 일 경계(§4.4) */
+    /** 엣지 후보(10분 스냅) → 반대편 고정 + 최소 MIN_DURATION(20분) + 일 경계(§4.4) */
     function rangeAt(g: Gesture, clientY: number): ResizePreview {
       const contentY = clientYToContentY(clientY, g.rect, g.scroller.scrollTop); // scrollTop 라이브(§4.1)
       const edgeMin = snapMin(yToMinutes(contentY), GESTURE_SNAP);

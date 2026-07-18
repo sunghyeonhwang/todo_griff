@@ -33,3 +33,31 @@ QA 중 발견·수정 2건:
   시간 섹션 + **소요시간 pill 선택기**(15분~2시간) + 알림/메모 카드 + 하단 대형 저장 pill
 - 브라우저 검증: 주간 스트립 탭/오늘, FAB 드래프트, pill→시간 동기화→저장, 라이트·다크, 콘솔 0건
 - 액센트는 스크린샷의 코랄이 아닌 design_token/ 파랑 유지(토큰이 색상 소스 오브 트루스 — 정체성은 구조로 이식)
+
+## 개선 3건 (2026-07-18, 사용자 확정)
+
+Plan-Do-See 사이클 강화 + 10분 정밀도. typecheck/build 클린. DESIGN.md §4.1·§7 개정 + §16 신설 반영.
+
+### ① 10분 스냅 + 보조 눈금 + 최소 블록 20분 (§4.1 개정)
+- `GESTURE_SNAP` 15→10(토큰 `snapMinutes`·`--snap-minutes` 동기, 96px/시에서 10분=16px 정수). STORE_SNAP 5 유지.
+- TimelineGrid에 **10분 보조 헤어라인**(시간선 색을 opacity 40%로 파생, 라벨은 정시만) — "부 눈금 없음" 규칙 개정.
+- `MIN_DURATION` 15→20(=32px). **창작 최소와 렌더 하한 분리**: `normalizeRange`(mutation)만 20분 강제, 로드용 `sanitizeRange`는 최소 길이 미강제 → **기존 15분 블록 데이터 무손실**. 카드 `min-height = RENDER_MIN_HEIGHT`(24px)로 짧은 레거시 블록 가독 보장. 토큰 `blockMinHeight` 의미가 '최소 길이'→'렌더 하한'으로 개정.
+- 생성/이동/리사이즈 모두 GESTURE_SNAP 공유라 자동 10분 일관.
+- 변경 파일: `lib/time.ts`, `lib/tokens.ts`, `styles/tokens.css`, `store/blocksStore.ts`, `components/TimelineGrid.tsx`, `components/TimeBlockCard.tsx`(min-height), 제스처 훅 주석.
+
+### ② 종료 알림 + 진행 중 카운트다운 + 알림 어댑터 분리 (§7 개정)
+- **`lib/notify.ts` 신설**: 발화 경로(SW showNotification + 인앱 토스트)를 `notify(title,body,tag)`로 추상화. alarms.ts가 유일 소비자. **네이티브 전환 시 이 파일 1곳만 교체** 헤더 주석.
+- **종료 알림 옵트인**: `TimeBlock.endAlarm?`(에디터 알림 카드 "종료 알림" 토글). fireAt=endMin, firedKey=`id|dateKey|end|fireAtMin`(시작 키와 충돌 금지, prune 파싱 호환). 10분 발화창·영속 dedup 그대로.
+- **진행 중 카운트다운**: TimeBlockCard가 `useNow`(나우라인 30초 틱 인프라) 재사용해 범위 안·미완료면 "남은 N분" 소형 표시. 완료 블록 미표시.
+- 변경/신설: `lib/notify.ts`(신설), `lib/alarms.ts`, `types.ts`, `store/blocksStore.ts`, `components/BlockEditor.tsx`, `components/TimeBlockCard.tsx`, `lib/strings.ts`.
+
+### ③ 하루 마감 See 카드 (§16 신설)
+- **`store/reviewStore.ts` 신설**: persist(dayblocks:review v1, safeStorage) — `captureSnapshot`(날짜당 1회·불변, 최근 7일 정리). 스냅샷 변이 초크포인트 격리 = **향후 Supabase 전환 교체점**(주석).
+- **`hooks/useDaySnapshot.ts` 신설**: 그날 첫 조회(양 스토어 하이드레이션 게이트) + 자정 롤오버에 오늘 계획 `{id,title,start,end}` 캡처.
+- **`components/DayReviewSheet.tsx` 신설**: DateHeader 아이콘 버튼(저녁 18시 이후 도트 강조)으로 진입. 계획 실행률 바 + 계획/완료 2열 + 추가 블록 수 + 밀린 계획 목록. 조회 전용, **개인 시간 회고 전용(팀 회고는 Que 분업)**. 스냅샷 없는 날은 교육형 빈 상태.
+- 변경: `store/uiStore.ts`(reviewOpen), `components/DateHeader.tsx`, `App.tsx`(hook+sheet 배선), `lib/strings.ts`.
+
+### 네이티브 앱 트랙 결정 (2026-07-18 사용자 확정)
+- **추후 네이티브 앱(Capacitor 우선 검토)** — 웹 백그라운드 알림 한계를 로컬 알림으로 해소.
+- **데이터는 Que Supabase 공유**(계획 스냅샷·블록 저장 전환 예정) — reviewStore·blocksStore 변이 초크포인트로 교체점 격리.
+- **PWA 푸시 서버는 하지 않음** — 알림은 앱이 열려 있는 동안만(§7). 네이티브 전환 시 `lib/notify.ts` 1곳 교체.

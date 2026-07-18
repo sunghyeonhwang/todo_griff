@@ -2,12 +2,14 @@ import { useEffect, useRef, useState } from 'react';
 import AddFab from './components/AddFab';
 import BlockEditor from './components/BlockEditor';
 import DateHeader from './components/DateHeader';
+import DayReviewSheet from './components/DayReviewSheet';
 import LoginScreen from './components/LoginScreen';
 import OkrScreen from './components/OkrScreen';
 import QueInbox from './components/QueInbox';
 import TabBar from './components/TabBar';
 import Timeline, { type TimelineHandle } from './components/Timeline';
 import Toast from './components/Toast';
+import { useDaySnapshot } from './hooks/useDaySnapshot';
 import { STRINGS } from './lib/strings';
 import { useAuthStore } from './store/authStore';
 import { useUiStore } from './store/uiStore';
@@ -24,6 +26,9 @@ import { useUiStore } from './store/uiStore';
 export default function App() {
   const timelineRef = useRef<TimelineHandle>(null);
   const activeTab = useUiStore((s) => s.activeTab);
+  const activeDateKey = useUiStore((s) => s.activeDateKey);
+  // 하루 계획 스냅샷 캡처(§16) — 그날 첫 조회 시점에 오늘 계획을 저장(See 카드 비교 소스).
+  useDaySnapshot();
   // Que 미연결(anon) + "나중에" 미선택이면 셸 대신 로그인 노출(§14.8). Toast는 병행 마운트
   // (부팅 시 safeStorage 손상 안내 등이 유실되지 않게).
   const showLogin = useAuthStore((s) => s.status === 'anon' && !s.dismissed);
@@ -84,6 +89,8 @@ export default function App() {
         <TabBar />
       </div>
       <BlockEditor />
+      {/* 하루 돌아보기(See §16) — 활성 날짜의 계획 스냅샷 vs 실행 비교. 앱 전체 인스턴스 1개. */}
+      <DayReviewSheet dateKey={activeDateKey} />
       <Toast />
     </div>
   );

@@ -1,8 +1,11 @@
 import { useShallow } from 'zustand/react/shallow';
 import ThemeToggle from './ThemeToggle';
+import { useNow } from '../hooks/useNow';
 import { STRINGS } from '../lib/strings';
 import { dayOfMonth, formatHeaderDate, isTodayKey, weekDateKeys } from '../lib/time';
 import { useUiStore } from '../store/uiStore';
+
+const EVENING_MIN = 18 * 60; // 하루 돌아보기 진입점 강조 시작 시각(18:00, §16)
 
 // 날짜 내비게이션 헤더 — DESIGN.md §6.5 (Structured 비주얼 정체성)
 // - 스크롤러 밖 shrink-0 형제(App에서 Timeline 위) — sticky + backdrop-blur의 iOS 지터 회피.
@@ -20,14 +23,18 @@ interface DateHeaderProps {
 }
 
 export default function DateHeader({ onToday }: DateHeaderProps) {
-  const { activeDateKey, goRelative, goToToday, goToDate } = useUiStore(
+  const { activeDateKey, goRelative, goToToday, goToDate, openReview } = useUiStore(
     useShallow((s) => ({
       activeDateKey: s.activeDateKey,
       goRelative: s.goRelative,
       goToToday: s.goToToday,
       goToDate: s.goToDate,
+      openReview: s.openReview,
     })),
   );
+  // 저녁(18시 이후) & 오늘일 때 진입점 강조 — 나우라인과 동일한 useNow 틱 재사용(§16)
+  const { nowMin, todayKey } = useNow();
+  const eveningNudge = activeDateKey === todayKey && nowMin >= EVENING_MIN;
 
   const handleToday = () => {
     goToToday();
@@ -65,6 +72,33 @@ export default function DateHeader({ onToday }: DateHeaderProps) {
           className="h-9 shrink-0 rounded-full px-3 text-sm font-medium text-accent-primary active:bg-surface-background"
         >
           {STRINGS.header.today}
+        </button>
+        {/* 하루 돌아보기(See §16) — 항상 접근 가능, 저녁엔 도트로 강조 */}
+        <button
+          type="button"
+          aria-label={STRINGS.review.open}
+          onClick={openReview}
+          className="relative flex size-9 shrink-0 items-center justify-center rounded-full text-text-secondary active:bg-surface-background"
+        >
+          <svg
+            aria-hidden
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="size-5"
+          >
+            <path d="M9 11l3 3 8-8" />
+            <path d="M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9" />
+          </svg>
+          {eveningNudge && (
+            <span
+              aria-hidden
+              className="absolute top-1.5 right-1.5 size-2 rounded-full bg-accent-primary"
+            />
+          )}
         </button>
         <ThemeToggle />
       </div>

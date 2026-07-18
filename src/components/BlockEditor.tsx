@@ -48,6 +48,7 @@ interface FormState {
   endMin: number;
   alarmOn: boolean;
   alarmOffset: AlarmOffset; // 꺼도 세션 동안 오프셋 유지(§2)
+  endAlarmOn: boolean;      // 종료 시각 알림(§7 개정) — 옵트인 토글
   note: string;
   project: string;
   completed: boolean; // 밴드 우측 완료 원(edit 전용) — 저장 시 update에만 반영
@@ -121,6 +122,7 @@ function initialForm(editor: OpenEditor): FormState {
         endMin: b.endMin,
         alarmOn: b.alarm !== null,
         alarmOffset: b.alarm ?? DEFAULT_ALARM_OFFSET,
+        endAlarmOn: b.endAlarm === true,
         note: b.note,
         project: b.project,
         completed: b.completed,
@@ -138,6 +140,7 @@ function initialForm(editor: OpenEditor): FormState {
     endMin: draft.endMin,
     alarmOn: false,
     alarmOffset: DEFAULT_ALARM_OFFSET,
+    endAlarmOn: false,
     note: '',
     project: '',
     completed: false,
@@ -205,6 +208,7 @@ function EditorForm({ editor }: { editor: OpenEditor }) {
       startMin: form.startMin,
       endMin: form.endMin,
       alarm: form.alarmOn ? form.alarmOffset : null,
+      endAlarm: form.endAlarmOn, // 종료 알림(§7 개정) — 스토어가 true일 때만 필드 유지
       note: form.note,
       project: form.project,
     };
@@ -238,6 +242,15 @@ function EditorForm({ editor }: { editor: OpenEditor }) {
   const handleAlarmToggle = () => {
     const next = !form.alarmOn;
     patch({ alarmOn: next });
+    if (next && notifPermission === 'default') {
+      void requestNotificationPermission().then(setNotifPermission);
+    }
+  };
+
+  // 종료 알림 토글(§7 개정) — 시작 알림과 동일하게 최초 켜기 제스처 안에서만 권한 요청.
+  const handleEndAlarmToggle = () => {
+    const next = !form.endAlarmOn;
+    patch({ endAlarmOn: next });
     if (next && notifPermission === 'default') {
       void requestNotificationPermission().then(setNotifPermission);
     }
@@ -463,6 +476,26 @@ function EditorForm({ editor }: { editor: OpenEditor }) {
                 />
               </button>
             </div>
+          </div>
+          {/* 종료 알림 토글(§7 개정) — 블록이 끝날 때 알림. 시작 알림과 같은 정직 한계(앱 열림 중만) */}
+          <div className="flex items-center justify-between gap-2 border-t border-surface-timeline-line pt-2">
+            <span className="text-base text-text-primary">{STRINGS.editor.endAlarmLabel}</span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={form.endAlarmOn}
+              aria-label={STRINGS.editor.endAlarmLabel}
+              onClick={handleEndAlarmToggle}
+              className={`h-7 w-12 shrink-0 rounded-full p-0.5 transition-colors duration-(--duration-fast) ${
+                form.endAlarmOn ? 'bg-accent-primary' : 'bg-surface-timeline-line'
+              }`}
+            >
+              <span
+                className={`block size-6 rounded-full bg-surface-card shadow-sm transition-transform duration-(--duration-fast) ${
+                  form.endAlarmOn ? 'translate-x-5' : ''
+                }`}
+              />
+            </button>
           </div>
           <p className="text-xs text-text-tertiary">{STRINGS.editor.alarmCaveat}</p>
           {showIosHint && !iosHintDismissed && (

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { RefObject } from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import ResizeHandle from './ResizeHandle';
+import { useNow } from '../hooks/useNow';
 import { useResizeBlock } from '../hooks/useResizeBlock';
 import {
   CAPTION_MIN_HEIGHT,
@@ -9,6 +10,7 @@ import {
   DAY_MINUTES,
   GESTURE_SNAP,
   LANE_GAP,
+  RENDER_MIN_HEIGHT,
   RULER_WIDTH,
   clamp,
   formatMinutes,
@@ -72,6 +74,8 @@ export default function TimeBlockCard({
   const { listeners, setNodeRef, transform, isDragging } = useDraggable({ id });
   const { preview, resizing, handleHandlers } = useResizeBlock(scrollerRef, id);
   const [hovered, setHovered] = useState(false); // 마우스 전용 — 핸들 노출 게이트(§4.4)
+  // 진행 중 카운트다운(§7 개정) — 나우라인과 동일한 useNow 30초 틱 인프라 재사용(새 타이머 없음).
+  const { nowMin, todayKey } = useNow();
 
   // 드래그 직후 합성 click 가드(§4.9) — isDragging 이력을 기록, click에서 1회 소비
   const wasDraggedRef = useRef(false);
@@ -113,6 +117,11 @@ export default function TimeBlockCard({
   const open = () => openEdit(id);
   const done = block.completed;
 
+  // 진행 중 = 오늘 && 현재 시각이 블록 범위 안 && 미완료(§7 개정). 완료 블록엔 미표시.
+  const inProgress =
+    !done && block.dateKey === todayKey && nowMin >= block.startMin && nowMin < block.endMin;
+  const remainingLabel = STRINGS.card.remaining(STRINGS.duration(Math.max(block.endMin - nowMin, 0)));
+
   return (
     <div
       ref={setNodeRef}
@@ -149,6 +158,8 @@ export default function TimeBlockCard({
       style={{
         top,
         height,
+        // 렌더 최소 높이(§4.1 개정) — 레거시 15분 블록(24px)을 데이터 변환 없이 가독 하한으로 보장.
+        minHeight: RENDER_MIN_HEIGHT,
         left,
         width,
         zIndex,
@@ -199,6 +210,13 @@ export default function TimeBlockCard({
                   {formatMinutes(startMin)} – {formatMinutes(endMin)} ·{' '}
                   {STRINGS.duration(endMin - startMin)}
                 </span>
+              </div>
+            )}
+            {/* 진행 중 카운트다운(§7 개정) — 소형 표시, 완료 블록엔 없음.
+                캡션 표시 높이(≥40px)일 때만 렌더 — 콤팩트 카드에서 잘리는 것 방지. */}
+            {inProgress && showCaption && (
+              <div className="truncate text-xs font-semibold text-(--blk-fg) opacity-90 tabular-nums">
+                {remainingLabel}
               </div>
             )}
           </div>

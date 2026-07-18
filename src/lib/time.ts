@@ -15,9 +15,16 @@ export const DAY_HEIGHT = 24 * HOUR_HEIGHT;          // 2304px
 export const TOP_PAD = 16;                           // 캔버스 상단 여백(px) + safe-area
 export const BOTTOM_PAD = 40;                        // 캔버스 하단 여백(px) + safe-area
 export const RULER_WIDTH = LAYOUT.timeLabelWidth;    // 60 — 토큰 --time-label-width
-export const GESTURE_SNAP = LAYOUT.snapMinutes;      // 15 — 생성·이동·리사이즈 스냅(분)
+export const GESTURE_SNAP = LAYOUT.snapMinutes;      // 10 — 생성·이동·리사이즈 스냅(분, §4.1 개정)
+                                                     //   96px/시에서 10분 = 16px 정수(토큰 snapMinutes와 동기).
 export const STORE_SNAP = 5;                         // 저장 불변식 단위(분)
-export const MIN_DURATION = 15;                      // 최소 블록 길이(분) = 24px = --block-min-height
+export const MINOR_GRID = 10;                        // 보조 헤어라인 간격(분) = 16px — 10분 스냅 시각 정합(§4.1)
+export const MIN_DURATION = 20;                      // 최소 블록 길이(분) = 32px — 15→20 상향(§4.1 개정):
+                                                     //   10분 스냅과 어긋나던 15분 최소를 정리하고 제목 렌더 여유 확보.
+                                                     //   호환: 기존 15분 블록은 데이터 강제 변환 없이 RENDER_MIN_HEIGHT로 렌더 보장.
+export const RENDER_MIN_HEIGHT = LAYOUT.blockMinHeight; // 24px — 카드 렌더 최소 높이(토큰 --block-min-height).
+                                                     //   MIN_DURATION(창작 최소)과 분리: 레거시 15분(24px) 블록을 강제 변환하지 않고
+                                                     //   가독성만 보장하는 하한(§4.1 개정 — blockMinHeight는 이제 '렌더 하한'을 의미).
 export const SCROLL_ANCHOR = 0.3;                    // 나우라인 스크롤 목표 = 뷰포트 상단 30%
 export const DAY_MINUTES = 24 * 60;                  // 1440 — 일 경계 클램프 상한(분, §4.10)
 export const DEFAULT_DURATION = 60;                  // '+'·플레인 탭 드래프트 기본 길이(분, §5·§4.2)

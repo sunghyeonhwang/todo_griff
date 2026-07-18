@@ -14,12 +14,13 @@ export type QueSyncState = 'synced' | 'pending' | 'error';
 export interface TimeBlock {
   id: string;              // crypto.randomUUID() — 서버 동기화에도 안전한 전역 유일 키
   dateKey: string;         // 'yyyy-MM-dd' (로컬 날짜, 타임존 비의존)
-  startMin: number;        // 0..1425, 5분 배수 (스토어 액션이 강제)
-  endMin: number;          // startMin+15 .. 1440, 5분 배수
+  startMin: number;        // 0..1420, 5분 배수 (스토어 액션이 강제)
+  endMin: number;          // startMin+20 .. 1440, 5분 배수 (창작 최소 20분 §4.1 개정; 레거시 15분 로드는 무손실)
   title: string;           // 저장 시 빈 값/공백이면 '새 일정'으로 대체 (저장 비활성화 없음)
   icon: string;            // 큐레이션 아이콘 8개 중 1개(id, lib/icons.ts), 기본 'star'
   color: BlockColor;       // 기본 'blue'
   alarm: AlarmOffset | null; // null = 알림 없음 (끄면 오프셋은 에디터 로컬에만 세션 유지)
+  endAlarm?: boolean;        // 종료 시각 알림(§7 개정) — 옵트인. 없으면 off. true일 때만 저장.
   note: string;
   project: string;         // 로컬 프로젝트 태그(선택, 기본 ''). Que 연동 블록은 projectLabel로 프리필(§14.4)
   completed: boolean;

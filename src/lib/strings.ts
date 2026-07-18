@@ -29,6 +29,7 @@ export const STRINGS = {
     endLabel: '종료',
     timeOrderHint: '종료 시각은 시작 시각보다 늦어야 해요',
     alarmLabel: '알림',
+    endAlarmLabel: '종료 알림',   // 종료 시각 알림 토글(§7 개정) — 블록이 끝날 때 알려줌
     alarmCaveat: '알림은 앱이 열려 있는 동안에만 동작합니다',
     // 시작 전 오프셋(§2 AlarmOffset)과 1:1
     alarmOffsets: {
@@ -58,6 +59,8 @@ export const STRINGS = {
 
   card: {
     completeLabel: '완료 표시',
+    /** 진행 중 블록 카운트다운(§7 개정) — 예: '남은 24분' / '남은 1시간 5분' */
+    remaining: (label: string) => `남은 ${label}`,
   },
 
   /** 블록 아이콘 한글 라벨 — lib/icons.ts CURATED_ICONS id와 1:1(§5 필드 3). 피커 aria-label. */
@@ -122,6 +125,27 @@ export const STRINGS = {
   alarm: {
     /** OS 알림·인앱 토스트 본문 — 예: '09:00 시작' (§7) */
     startsAt: (time: string) => `${time} 시작`,
+    /** 종료 알림 본문 — 예: '10:30 종료' (§7 개정) */
+    endsAt: (time: string) => `${time} 종료`,
+  },
+
+  // 하루 마감 See 카드 — Plan-Do-See의 See (DESIGN.md §16). 개인 시간 회고 전용(팀 회고는 Que).
+  review: {
+    open: '하루 돌아보기',
+    title: '하루 돌아보기',
+    subtitle: '내 개인 시간을 돌아봐요 (팀 회고는 Que에서)',
+    planned: '계획',
+    done: '완료',
+    /** 계획 대비 실행률 — 예: '계획 실행률 75%' */
+    rateLabel: (pct: number) => `계획 실행률 ${pct}%`,
+    /** 계획/완료 요약 — 예: '3개 · 2시간 30분' */
+    countHours: (count: number, hours: string) => `${count}개 · ${hours}`,
+    /** 계획에 없던 추가 일정 수 — 예: '계획에 없던 일정 2개' */
+    added: (n: number) => `계획에 없던 일정 ${n}개`,
+    missedTitle: '아직 안 끝난 계획',
+    missedEmpty: '밀린 계획이 없어요 👍',
+    empty: '이 날의 계획 스냅샷이 없어요. 아침에 하루 일정을 짜두면 저녁에 돌아볼 수 있어요.',
+    close: '닫기',
   },
 
   /** 주간 스트립 요일 글자 — 월요일 시작(time.ts weekDateKeys와 순서 일치, §6.5) */

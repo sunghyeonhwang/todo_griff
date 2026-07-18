@@ -11,6 +11,7 @@ interface UiState {
   activeTab: AppTab;                   // 하단 탭(§6.5) — 앱 시작은 항상 '오늘'(휘발)
   editor: EditorState;
   selectedBlockId: string | null;      // 터치에서 리사이즈 핸들 노출 게이트
+  reviewOpen: boolean;                 // 하루 돌아보기(See) 시트 열림(§16) — 휘발
   notifPermission: NotificationPermission | 'unsupported';
   toast: { seq: number; message: string } | null;
 }
@@ -23,6 +24,8 @@ interface UiActions {
   openCreate(draft: { dateKey: string; startMin: number; endMin: number }): void;
   openEdit(blockId: string): void;
   closeEditor(): void;
+  openReview(): void;
+  closeReview(): void;
   select(id: string | null): void;
   setNotifPermission(p: NotificationPermission | 'unsupported'): void;
   showToast(message: string): void;
@@ -40,6 +43,7 @@ export const useUiStore = create<UiState & UiActions>()((set) => ({
   activeTab: 'today',
   editor: { mode: 'closed' },
   selectedBlockId: null,
+  reviewOpen: false,
   notifPermission: initialNotifPermission(),
   toast: null,
 
@@ -53,6 +57,8 @@ export const useUiStore = create<UiState & UiActions>()((set) => ({
   openCreate: (draft) => set({ editor: { mode: 'create', draft } }),
   openEdit: (blockId) => set({ editor: { mode: 'edit', blockId } }),
   closeEditor: () => set({ editor: { mode: 'closed' } }),
+  openReview: () => set({ reviewOpen: true }),
+  closeReview: () => set({ reviewOpen: false }),
 
   select: (id) => set({ selectedBlockId: id }),
   setNotifPermission: (p) => set({ notifPermission: p }),

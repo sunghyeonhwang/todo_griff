@@ -27,7 +27,11 @@ export const LAYOUT = {
   hourHeight:        96,
   pxPerMinute:       96 / 60, // 1.6
   timeLabelWidth:    60,
-  snapMinutes:       15,
+  // 제스처 스냅 15→10 (DESIGN.md §4.1 개정): 96px/시에서 10분 = 16px 정수라 서브픽셀 없음.
+  // lib/time.ts GESTURE_SNAP·styles/tokens.css --snap-minutes와 동기.
+  snapMinutes:       10,
+  // 렌더 최소 높이(24px = 15분). 이제 '창작 최소 블록 길이'(MIN_DURATION=20분=32px)와 분리된
+  // '카드 렌더 하한'을 의미한다 — 레거시 15분 블록을 강제 변환하지 않고 가독성만 보장(§4.1 개정).
   blockMinHeight:    24,
   nowIndicatorWidth: 2,
 } as const;

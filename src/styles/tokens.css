@@ -74,7 +74,9 @@
   --hour-height:        96px;
   --px-per-minute:      1.6; /* hour-height / 60 */
   --time-label-width:   60px;
-  --snap-minutes:       15;
+  /* 제스처 스냅 15→10 (§4.1 개정): 96px/시에서 10분=16px 정수. lib/time.ts·tokens.ts와 동기. */
+  --snap-minutes:       10;
+  /* 렌더 최소 높이(24px=15분). '창작 최소 길이'(20분=32px, MIN_DURATION)와 분리된 렌더 하한(§4.1 개정). */
   --block-min-height:   24px;
   --now-indicator-width:2px;
 

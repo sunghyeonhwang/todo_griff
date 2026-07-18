@@ -29,8 +29,8 @@ import { useEdgeAutoScroll } from './useEdgeAutoScroll';
 // - 프리뷰는 훅 로컬 상태(§3.2) — 스토어는 릴리즈의 openCreate만 안다. 스토어 쓰기 없음:
 //   addBlock은 에디터 저장 버튼의 1회뿐(§4.2), 취소 시 잔여물 제로.
 // - rect는 pointerdown 1회 캐시 + scrollTop은 move마다 라이브(§4.1). move 핸들러는 rAF 배칭.
-// - 앵커·현재 지점 모두 15분 스냅(GESTURE_SNAP), 위로 드래그 허용([min,max]), 최소 15분,
-//   [0, 1440] 클램프(§4.10-1).
+// - 앵커·현재 지점 모두 10분 스냅(GESTURE_SNAP, §4.1 개정), 위로 드래그 허용([min,max]),
+//   최소 MIN_DURATION(20분), [0, 1440] 클램프(§4.10-1).
 
 const MOUSE_DRAG_SLOP_PX = 6;   // §4.2 마우스: 6px 이동 시 드래프트 시작, 미만이면 탭
 const TOUCH_ARM_DELAY_MS = 400; // §4.2 터치: 롱프레스 400ms 무장 — 이동(300ms)보다 의도적으로 길게

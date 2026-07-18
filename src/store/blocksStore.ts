@@ -26,6 +26,7 @@ export interface NewBlockInput {
   icon?: string;
   color?: BlockColor;
   alarm?: AlarmOffset | null;
+  endAlarm?: boolean; // 종료 시각 알림(§7 개정) — 옵트인. 생략 시 미설정(off).
   note?: string;
   project?: string;
   // Que 연동(§14.3) — 기존 액션의 가법적 확장. 8개 변이 초크포인트 유지(§3.1).
@@ -62,10 +63,20 @@ function normalizeTitle(title: string): string {
   return t === '' ? STRINGS.editor.defaultTitle : t;
 }
 
-/** 5분 스냅 + 일 경계 클램프 + 최소 15분 — 시작 고정, 종료를 보정(§3.1, §4.10) */
+/** 5분 스냅 + 일 경계 클램프 + 최소 MIN_DURATION(20분) — 시작 고정, 종료를 보정(§3.1, §4.10).
+ *  창작·편집(mutation) 경로에서만 최소 길이를 강제한다 — 새 블록/편집 블록의 하한. */
 function normalizeRange(startMin: number, endMin: number): { startMin: number; endMin: number } {
   const s = clamp(snapMin(startMin, STORE_SNAP), 0, DAY_MINUTES - MIN_DURATION);
   const e = clamp(snapMin(endMin, STORE_SNAP), s + MIN_DURATION, DAY_MINUTES);
+  return { startMin: s, endMin: e };
+}
+
+/** 저장 데이터 로드용 정규화 — 5분 스냅 + 일 경계 + end>start만 보장(§4.1 개정).
+ *  MIN_DURATION 상향(15→20)이 기존 15분 블록을 강제 변환하지 않도록 최소 길이 floor를 적용하지
+ *  않는다(렌더는 RENDER_MIN_HEIGHT로 가독성 보장). 새/편집 블록의 20분 최소는 normalizeRange가 강제. */
+function sanitizeRange(startMin: number, endMin: number): { startMin: number; endMin: number } {
+  const s = clamp(snapMin(startMin, STORE_SNAP), 0, DAY_MINUTES - STORE_SNAP);
+  const e = clamp(snapMin(endMin, STORE_SNAP), s + STORE_SNAP, DAY_MINUTES);
   return { startMin: s, endMin: e };
 }
 
@@ -99,12 +110,15 @@ function sanitizeBlock(fallbackId: string, v: unknown): TimeBlock | null {
     ...b, // 미지 필드 보존 — 서버 마이그레이션 하위 호환(§13.2). 구 emoji는 위에서 제거됨.
     id: typeof b.id === 'string' && b.id !== '' ? b.id : fallbackId,
     dateKey: b.dateKey,
-    ...normalizeRange(b.startMin, b.endMin),
+    // 로드는 sanitizeRange(최소 길이 미강제) — 레거시 15분 블록을 20분으로 강제 변환하지 않는다(§4.1 개정).
+    ...sanitizeRange(b.startMin, b.endMin),
     title: normalizeTitle(typeof b.title === 'string' ? b.title : ''),
     // 아이콘 id 검증 — 알 수 없으면(구 이모지 문자 포함) 기본 'star'로 마이그레이션(v1→v2).
     icon: isIconId(b.icon) ? b.icon : DEFAULT_ICON_ID,
     color: isBlockColor(b.color) ? b.color : DEFAULT_COLOR, // 알 수 없는 color → 'blue'(§3.1)
     alarm: isAlarmOffset(b.alarm) ? b.alarm : null,
+    // 종료 알림(§7 개정) — 옵트인 불리언. true일 때만 보존(가법적, 버전업 불요).
+    endAlarm: b.endAlarm === true ? true : undefined,
     note: typeof b.note === 'string' ? b.note : '',
     project: typeof b.project === 'string' ? b.project : '', // 미지/구 블록 → '' (가법적, 버전업 불요)
     completed: b.completed === true,
@@ -156,6 +170,7 @@ export const useBlocksStore = create<BlocksState & BlocksActions>()(
           icon: input.icon ?? DEFAULT_ICON_ID,
           color: input.color ?? DEFAULT_COLOR,
           alarm: input.alarm ?? null,
+          endAlarm: input.endAlarm ? true : undefined, // 종료 알림(§7 개정) — true일 때만 필드 유지
           note: input.note ?? '',
           project: input.project ?? '',
           completed: false,

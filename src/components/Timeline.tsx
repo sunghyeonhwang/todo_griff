@@ -56,7 +56,7 @@ import { useUiStore } from '../store/uiStore';
 //   excludeId로 제외(카드가 풀폭 90%로 위에 렌더). 빈 날 힌트(§6.5)는 드래프트 중 숨김.
 
 // 이동 모디파이어(§4.3) — 시각 보조일 뿐, 최종 권위는 onDragEnd 클램프 수식.
-// 세로 고정 → 15분 그리드(= 24px, §4.1 정수) 스냅 → 캔버스(부모) 경계 제한.
+// 세로 고정 → 10분 그리드(= 16px, §4.1 개정 정수) 스냅 → 캔버스(부모) 경계 제한.
 const MOVE_MODIFIERS: Modifiers = [
   restrictToVerticalAxis,
   createSnapModifier(GESTURE_SNAP * PX_PER_MIN),
@@ -123,7 +123,7 @@ export default function Timeline({ ref }: { ref?: Ref<TimelineHandle> }) {
     }
   }, []);
 
-  // 최종 권위 클램프 수식(§4.3): newStart = clamp(start + round(Δy/PX_PER_MIN/15)*15, 0, 1440-길이).
+  // 최종 권위 클램프 수식(§4.3): newStart = clamp(start + snapMin(Δy/PX_PER_MIN, 10), 0, 1440-길이).
   // e.delta는 모디파이어+스크롤 보정이 적용된 값 — snapMin이 오토스크롤 잔여 오프셋을 재스냅.
   // 스토어 쓰기는 제스처당 이 1회(§3.2), moveBlock이 5분 불변식·길이 보존을 재강제(§3.1).
   const handleDragEnd = useCallback((e: DragEndEvent) => {
