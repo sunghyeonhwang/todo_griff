@@ -198,6 +198,98 @@ export async function moveTask(taskId: string, startAt: string, endAt: string): 
   return data.task;
 }
 
+// ---------- 개인 블록·리뷰 동기화(§14.10) — 로컬 우선 미러 ----------
+//
+// Que Task 연동(위)과 별개 축이다. queTaskId 없는 순수 개인 블록과 See 스냅샷을 Que 서버에
+// 미러링한다(localStorage=진실, 서버=백업 §14.1). 블록 payload는 TimeBlock 전체(연동 필드 제외).
+
+/** GET /api/blocks 응답 항목 — 개인 블록 미러 레코드(§14.10). payload = TimeBlock(연동 필드 제외). */
+export interface QueBlockRecord {
+  id: string;
+  dateKey: string;
+  payload: unknown; // 문자열(JSON) 또는 객체 — 소비 측에서 방어적 파싱
+  updatedAt?: string | number; // 서버 스탬프(참고). LWW는 payload.updatedAt(편집 시각)을 씀
+}
+
+/** PUT /api/blocks 항목 — upsert 페이로드(§14.10). */
+export interface QueBlockPut {
+  id: string;
+  dateKey: string;
+  payload: unknown;
+}
+
+/** PUT /api/blocks 응답 — saved=성공 id, rejected=거부(남의 id 충돌 등, §14.10 rejected 처리). */
+export interface QueBlocksPutResult {
+  saved: string[];
+  rejected: { id: string; reason: string }[];
+}
+
+/** GET /api/day-reviews 응답 항목 — See 스냅샷 미러(불변, §14.10). */
+export interface QueReviewRecord {
+  dateKey: string;
+  snapshot: unknown;
+  updatedAt?: string | number;
+}
+
+/** PUT /api/day-reviews 항목 — 스냅샷 upsert(불변이라 재시도만, §14.10). */
+export interface QueReviewPut {
+  dateKey: string;
+  snapshot: unknown;
+}
+
+/** 개인 블록 풀 — from~to(YYYY-MM-DD, ≤31일). 기형 응답은 []로 강등(비파괴 — 로컬만 유지). */
+export async function getBlocks(from: string, to: string): Promise<QueBlockRecord[]> {
+  const data = await request<{ blocks?: QueBlockRecord[] }>(
+    `/api/blocks?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
+    undefined,
+    { auth: true },
+  );
+  return Array.isArray(data.blocks) ? data.blocks : [];
+}
+
+/** 개인 블록 푸시 — upsert(≤100건, payload 8KB는 호출자가 방어). saved/rejected 반환. */
+export async function putBlocks(blocks: QueBlockPut[]): Promise<QueBlocksPutResult> {
+  const data = await request<{ saved?: string[]; rejected?: { id: string; reason: string }[] }>(
+    '/api/blocks',
+    { method: 'PUT', body: JSON.stringify({ blocks }) },
+    { auth: true },
+  );
+  return {
+    saved: Array.isArray(data.saved) ? data.saved : [],
+    rejected: Array.isArray(data.rejected) ? data.rejected : [],
+  };
+}
+
+/** 개인 블록 삭제 — DELETE ?ids=a,b,c(≤100). */
+export async function deleteBlocks(ids: string[]): Promise<{ deleted: number }> {
+  const data = await request<{ deleted?: number }>(
+    `/api/blocks?ids=${ids.map((id) => encodeURIComponent(id)).join(',')}`,
+    { method: 'DELETE' },
+    { auth: true },
+  );
+  return { deleted: typeof data.deleted === 'number' ? data.deleted : 0 };
+}
+
+/** See 스냅샷 풀 — from~to(≤31일). 기형 응답은 []로 강등(불변·비파괴). */
+export async function getDayReviews(from: string, to: string): Promise<QueReviewRecord[]> {
+  const data = await request<{ reviews?: QueReviewRecord[] }>(
+    `/api/day-reviews?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
+    undefined,
+    { auth: true },
+  );
+  return Array.isArray(data.reviews) ? data.reviews : [];
+}
+
+/** See 스냅샷 푸시 — upsert(≤31건, snapshot 16KB). 불변이라 재시도만. */
+export async function putDayReviews(reviews: QueReviewPut[]): Promise<{ saved: string[] }> {
+  const data = await request<{ saved?: string[] }>(
+    '/api/day-reviews',
+    { method: 'PUT', body: JSON.stringify({ reviews }) },
+    { auth: true },
+  );
+  return { saved: Array.isArray(data.saved) ? data.saved : [] };
+}
+
 // ---------- 순수 매핑(§14.4·§14.5) — 시간 표현 경계 변환은 여기서만 ----------
 
 /** status → 블록 색(옵션 시각 매핑 §14.4). amber는 팔레트에 없어 orange(주의/대기)로 매핑. */

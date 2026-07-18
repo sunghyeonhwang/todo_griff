@@ -19,6 +19,9 @@ const QUE_SYNC_STATES: readonly QueSyncState[] = ['synced', 'pending', 'error'];
 
 /** addBlock 입력 — 생략 필드는 스토어가 기본값을 채운다(§3.1) */
 export interface NewBlockInput {
+  /** 원격 미러 복원 전용(§14.10) — 개인 블록 풀이 서버 id로 블록을 재생성할 때만 지정.
+   *  생략 시 crypto.randomUUID()(일반 생성 경로). 로컬 id=동기화 키라 원격 복원엔 보존이 필수. */
+  id?: string;
   dateKey: string;
   startMin: number;
   endMin: number;
@@ -163,7 +166,8 @@ export const useBlocksStore = create<BlocksState & BlocksActions>()(
       addBlock: (input) => {
         const now = Date.now();
         const block: TimeBlock = {
-          id: crypto.randomUUID(),
+          // 원격 미러 복원(§14.10)이면 서버 id 보존, 아니면 새 UUID. 유효한 문자열일 때만 채택.
+          id: typeof input.id === 'string' && input.id !== '' ? input.id : crypto.randomUUID(),
           dateKey: input.dateKey,
           ...normalizeRange(input.startMin, input.endMin),
           title: normalizeTitle(input.title ?? ''),
@@ -256,7 +260,9 @@ export const useBlocksStore = create<BlocksState & BlocksActions>()(
         set((s) => {
           const kept: Record<string, true> = {};
           for (const key of Object.keys(s.firedAlarms)) {
-            const dateKey = key.split('|')[1]; // firedKey = id|dateKey|fireAtMin(§7)
+            // firedKey 두 형식: 시작 `id|dateKey|fireAtMin` · 종료 `id|dateKey|end|fireAtMin`(§7 개정).
+            // 어느 쪽이든 [1]=dateKey라 이 파싱은 두 형식 모두 호환된다.
+            const dateKey = key.split('|')[1];
             if (dateKey !== undefined && dateKey >= todayKey) kept[key] = true;
           }
           return { firedAlarms: kept };

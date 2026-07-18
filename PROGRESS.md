@@ -61,3 +61,15 @@ Plan-Do-See 사이클 강화 + 10분 정밀도. typecheck/build 클린. DESIGN.m
 - **추후 네이티브 앱(Capacitor 우선 검토)** — 웹 백그라운드 알림 한계를 로컬 알림으로 해소.
 - **데이터는 Que Supabase 공유**(계획 스냅샷·블록 저장 전환 예정) — reviewStore·blocksStore 변이 초크포인트로 교체점 격리.
 - **PWA 푸시 서버는 하지 않음** — 알림은 앱이 열려 있는 동안만(§7). 네이티브 전환 시 `lib/notify.ts` 1곳 교체.
+
+## 개인 블록·See 스냅샷 서버 동기화 (2026-07-19, §14.10)
+
+Que API가 개인 저장소(`/api/blocks`·`/api/day-reviews`)를 제공 → §14의 로컬 우선·아웃박스·백오프 규범을 **두 번째 동기 축**으로 확장. `queTaskId` 없는 순수 개인 블록 + See 스냅샷을 서버 미러링(연동 블록은 tasks 라이트백 소관이라 제외 — 이중 저장 금지). typecheck/build 클린(lint 스크립트 없음).
+
+- **신설 `store/personalSync.ts`:** queSync 패턴의 개인 블록 판.
+  - **풀**: 부팅·재로그인 최근 14일 블록 GET → **id 단위 LWW**(payload.updatedAt vs 로컬 updatedAt, 아웃박스 잔존 시 로컬 승). 신규는 서버 id 보존 재생성(`addBlock` optional id). `applyingRemote`로 에코 차단. 스냅샷은 최근 7일 GET → 없는 날만 채움(불변).
+  - **푸시**: blocksStore 구독 → 개인 블록만 blockId 코얼레스 아웃박스(신규/변경/삭제/연동해제). 30초 플러시·지수 백오프·오프라인 보존. 스냅샷은 reviewStore 구독 → PUT 1회(불변).
+  - **Que 연동 블록 제외**: 구독 diff에서 `b.queTaskId` 있으면 skip, payload에서 `queTaskId`/`syncState` 방어 제외, 개인→연동 전환 시 개인 저장소에서 DELETE.
+  - **rejected**: 콘솔 경고+op 드롭(비재시도). 8KB 초과 스킵+경고. 401→expire(아웃박스 보존), 4xx 드롭, 5xx·네트워크 백오프.
+- **변경**: `lib/queApi.ts`(getBlocks/putBlocks/deleteBlocks/getDayReviews/putDayReviews+타입) · `store/blocksStore.ts`(NewBlockInput.id 가법 확장, addBlock 보존 + pruneFiredAlarms 주석에 종료키 `id|dateKey|end|fireAtMin` 형식 병기) · `store/reviewStore.ts`(applyRemoteSnapshot — capturedAt 보존 채우기 전용) · `main.tsx`(startPersonalSync 배선).
+- **DESIGN.md §14.10 신설.**

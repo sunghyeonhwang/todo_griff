@@ -36,6 +36,9 @@ interface ReviewState {
 interface ReviewActions {
   /** 그날 첫 조회 시 계획 스냅샷 저장 — 이미 있으면 no-op(불변). 저장 후 최근 7일로 정리(§16). */
   captureSnapshot(dateKey: string, items: PlanItem[]): void;
+  /** 원격 미러 복원(§14.10) — Que 풀이 로컬에 없는 날만 채운다(불변이라 충돌 없음).
+   *  capturedAt을 원본 그대로 보존한다(See 카드가 스냅샷 시각으로 노출하므로 now()로 덮으면 안 됨). */
+  applyRemoteSnapshot(snapshot: DayPlanSnapshot): void;
 }
 
 type PersistedReviewState = Pick<ReviewState, 'snapshots'>;
@@ -97,6 +100,12 @@ export const useReviewStore = create<ReviewState & ReviewActions>()(
         if (get().snapshots[dateKey]) return; // 불변 — 첫 조회 시점 고정(§16)
         const snapshot: DayPlanSnapshot = { dateKey, capturedAt: Date.now(), items };
         set((s) => ({ snapshots: pruneSnapshots({ ...s.snapshots, [dateKey]: snapshot }) }));
+      },
+
+      applyRemoteSnapshot: (snapshot) => {
+        if (get().snapshots[snapshot.dateKey]) return; // 불변·채우기 전용 — 로컬 우선(§14.10)
+        if (!DATE_KEY_RE.test(snapshot.dateKey)) return;
+        set((s) => ({ snapshots: pruneSnapshots({ ...s.snapshots, [snapshot.dateKey]: snapshot }) }));
       },
     }),
     {
